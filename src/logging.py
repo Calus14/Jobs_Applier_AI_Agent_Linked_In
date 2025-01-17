@@ -5,7 +5,7 @@ import logging
 from loguru import logger
 from selenium.webdriver.remote.remote_connection import LOGGER as selenium_logger
 
-from config import LOG_LEVEL, LOG_SELENIUM_LEVEL, LOG_TO_CONSOLE, LOG_TO_FILE
+from local_config import LOG_LEVEL, LOG_SELENIUM_LEVEL, LOG_TO_CONSOLE, LOG_TO_FILE
 
 
 def remove_default_loggers():
@@ -75,6 +75,6 @@ def init_selenium_logger():
     selenium_logger.addHandler(file_handler)
 
 
-remove_default_loggers()
-init_loguru_logger()
-init_selenium_logger()
+#remove_default_loggers()
+#init_loguru_logger()
+#init_selenium_logger()

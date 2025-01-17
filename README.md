@@ -2,29 +2,22 @@
 <div align="center">
 <img src="./assets/AIHawk.png">
 
-# AIHawk the first Jobs Applier AI Agent
+# Jobs Applier AI Agent - HMC Specific for Linkedin
 
-  ![CI](https://github.com/feder-cr/Auto_Jobs_Applier_AIHawk/actions/workflows/ci.yml/badge.svg)
-
-**🤖🔍 Your AI-powered job search assistant. Automate applications, get personalized recommendations and land your dream job faster.**
-
-Join our community: [Telegram](https://t.me/AIhawkCommunity) (for Normal users)
-
-[![Telegram](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/AIhawkCommunity)
-
+**Forked from [AI Hawk project] (https://github.com/feder-cr/Jobs_Applier_AI_Agent)**
 
 </div>
 
-**Creator** [feder-cr](https://github.com/feder-cr), Co-Founder of AIHawk </br>
-As AIHawk is focusing on their proprietary product - solving problems in hiring for companies, currently this project is led, managed, and maintained by a group of open-source contributors, with a focus on building tools to help job seekers land the jobs they deserve.
 
-**Project Maintainers / Leads**: [surapuramakhil](https://github.com/surapuramakhil), [sarob](https://github.com/sarob), [cjbbb](https://github.com/cjbbb)
+This project is aimed to be an exploratory side project that attempts to benefit others by allowing people to automate job applications at the expense of their own openAI credits or their own running OLLAMA model.
 
-We are looking to expand our FOSS maintainers team! If you are from a non-technical background, you can be part of the project management team, triaging issues, and shaping the project. If you are a technical person, you can join in doing code reviews, participating in releases, and building a better version of this product.
 
-reach out to [surapuramakhil](https://github.com/surapuramakhil) on Discord. [Special thanks](#special-thanks) 
+**Project Maintainers / Leads**: [Caleb](https://github.com/Calus14)
 
-Auto_Jobs_Applier_AIHawk is continuously evolving, and your feedback, suggestions, and contributions are highly valued. Feel free to open issues, suggest enhancements, or submit pull requests to help improve the project. Let's work together to make Auto_Jobs_Applier_AIHawk a powerful tool for job seekers worldwide.
+**General Workflow Documentations**: Using draw.io (a free software diagramming program online), all documents should be stored in the documents directory. Please add documentation to explain any general object relationships or any general pattern for object use.
+
+**Project Layout**
+
 
 ## Table of Contents
 
@@ -42,7 +35,7 @@ Auto_Jobs_Applier_AIHawk is continuously evolving, and your feedback, suggestion
 
 ## Introduction
 
-Auto_Jobs_Applier_AIHawk is a cutting-edge, automated tool designed to revolutionize the job search and application process. In today's fiercely competitive job market, where opportunities can vanish in the blink of an eye, this program offers job seekers a significant advantage by leveraging the power of automation and artificial intelligence.
+This project is an extension of a cutting-edge, automated tool designed to revolutionize the job search and application process. In today's fiercely competitive job market, where opportunities can vanish in the blink of an eye, this program offers job seekers a significant advantage by leveraging the power of automation and artificial intelligence.
 
 ### The Challenge of Modern Job Hunting
 

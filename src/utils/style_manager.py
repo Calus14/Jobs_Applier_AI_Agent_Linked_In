@@ -3,10 +3,9 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
-
-
+'''
+TODO Explain what this class does, and how it should be used by other objects.
+'''
 class StyleManager:
     def __init__(self):
         self.selected_style: Optional[str] = None

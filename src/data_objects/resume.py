@@ -1,8 +1,8 @@
+import logging
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Union
 import yaml
 from pydantic import BaseModel, EmailStr, HttpUrl, Field
-
 
 
 class PersonalInformation(BaseModel):
@@ -119,6 +119,7 @@ class Resume(BaseModel):
         except yaml.YAMLError as e:
             raise ValueError("Error parsing YAML file.") from e
         except Exception as e:
+            logging.exception(e)
             raise Exception(f"Unexpected error while parsing YAML: {e}") from e
 
 
