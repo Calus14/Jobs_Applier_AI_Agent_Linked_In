@@ -1,4 +1,5 @@
 import json
+import os.path
 from datetime import datetime
 from typing import Dict
 from local_config import global_config
@@ -16,6 +17,11 @@ class LLMLogger:
     @staticmethod
     def log_request(prompts, parsed_reply: Dict[str, Dict]):
         calls_log = global_config.LOG_OUTPUT_FILE_PATH / "open_ai_calls.json"
+
+        # Make the directory for logging if it does not exist yet.
+        if not os.path.exists(global_config.LOG_OUTPUT_FILE_PATH):
+            os.makedirs("./"+global_config.LOG_OUTPUT_FILE_PATH, exist_ok=True)
+
         if isinstance(prompts, StringPromptValue):
             prompts = prompts.text
         elif isinstance(prompts, Dict):

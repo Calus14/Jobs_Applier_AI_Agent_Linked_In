@@ -22,10 +22,12 @@ class GlobalConfig:
 
         self.LOG_OUTPUT_FILE_PATH: Path = Path("data_folder/output")
 
-        self.API_KEY: str = None
+        self.API_KEY: str = ''
 
         self.LLM_MODEL_TYPE = 'openai'
         self.LLM_MODEL = 'gpt-4o'
+        # Variable that controls the randomness of the model's outputs, going from 0.0-2.0
+        self.LLM_TEMPERATURE = 0.7
         # Only required for OLLAMA models
         self.LLM_API_URL = ''
 
