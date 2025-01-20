@@ -15,15 +15,17 @@ chat GPT models
 
 class OpenAiActionWrapper:
 
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: ChatOpenAI, enable_logging=True):
         self.llm = llm
+        self.logging = enable_logging
 
     def __call__(self, messages: List[Dict[str, str]]) -> str:
         for attempt in range(global_config.MAX_OPEN_AI_RETRIES):
             try:
                 reply = self.llm.invoke(messages)
                 parsed_reply = self.parse_llmresult(reply)
-                LLMLogger.log_request(prompts=messages, parsed_reply=parsed_reply)
+                if self.logging:
+                    LLMLogger.log_request(prompts=messages, parsed_reply=parsed_reply)
                 return reply
             except (openai.RateLimitError, HTTPStatusError) as err:
                 if isinstance(err, HTTPStatusError) and err.response.status_code == 429:
