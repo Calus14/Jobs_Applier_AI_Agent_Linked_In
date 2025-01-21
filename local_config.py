@@ -13,14 +13,18 @@ LOG_TO_CONSOLE = False
 class GlobalConfig:
     def __init__(self):
         base_directory = Path(__file__).resolve().parent
-        self.GENERATE_TEMPLATES_DIRECTORY: Path = base_directory / "generate_templates"
-        self.COVER_LETTER_MODULE_NAME: str = "cover_letter_template"
-        self.RESUME_MODULE_NAME: str = "cover_letter_template"
-        self.RESUME_MODULE_NAME: str = None
-        self.STYLES_RESUME_DIRECTORY: Path = self.GENERATE_TEMPLATES_DIRECTORY / "styles" / "resumes"
-        self.STYLES_RESUME_DIRECTORY: Path = self.GENERATE_TEMPLATES_DIRECTORY / "styles" / "cover_letters"
+        self.ASSETS_DIRECTORY: Path = base_directory / "assets"
+        self.STYLES_RESUME_DIRECTORY: Path = self.ASSETS_DIRECTORY / "styles" / "resumes"
+        self.STYLES_RESUME_DIRECTORY: Path = self.ASSETS_DIRECTORY / "styles" / "cover_letters"
+
+        self.PROMPTS_DIRECTORY: Path = base_directory / "src" / "utils" / "llm_utils" / "prompts"
 
         self.LOG_OUTPUT_FILE_PATH: Path = Path("data_folder/output")
+
+        self.LINKEDIN_EMAIL: str = ''
+        self.LINKEDIN_PASSWORD: str = ''
+
+        self.RESUME = None
 
         self.API_KEY: str = ''
 
@@ -30,6 +34,8 @@ class GlobalConfig:
         self.LLM_TEMPERATURE = 0.7
         # Only required for OLLAMA models
         self.LLM_API_URL = ''
+
+        self.AI_MODEL = None
 
         # This controls how many times we attempt to contact openAI to get an answer before declaring it an error
         self.MAX_OPEN_AI_RETRIES = 15

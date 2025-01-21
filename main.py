@@ -2,9 +2,13 @@ import argparse
 import traceback
 from pathlib import Path
 
+from langchain_openai import ChatOpenAI
+
 from local_config import global_config
+from src.data_objects.resume import Resume
 from src.logging import logger
 from src.utils.config_validator import ConfigValidator, ConfigError
+from src.utils.llm_utils.open_ai_action_wrapper import OpenAiActionWrapper
 from src.utils.web_scrapping.job_boards.linked_in_board_browser import LinkedInBoardBrowser
 from src.utils.web_scrapping.web_driver_factory import WebDriverFactory
 
@@ -16,11 +20,19 @@ def load_config():
 
         # Validate configuration and secrets
         config = ConfigValidator.validate_config(config_file)
-        global_config.API_KEY = ConfigValidator.validate_secrets(secrets_file)
+        secrets = ConfigValidator.validate_secrets(secrets_file)
+        global_config.API_KEY = secrets["llm_api_key"]
+        global_config.LINKEDIN_EMAIL = secrets["linkedin_email"]
+        global_config.LINKEDIN_PASSWORD = secrets["linkedin_password"]
+
+        with open(plain_text_resume_file, "r", encoding="utf-8") as file:
+            plain_text_resume = file.read()
+            global_config.RESUME = Resume(plain_text_resume)
 
         # Prepare parameters
         config["uploads"] = ConfigValidator.get_uploads(plain_text_resume_file)
         config["outputFileDirectory"] = output_folder
+        return config
 
     except ConfigError as ce:
         logger.error(f"Configuration error: {ce}")
@@ -35,8 +47,6 @@ def load_config():
         logger.debug(traceback.format_exc())
     except Exception as e:
         logger.exception(f"An unexpected error occurred: {e}")
-
-    return config
 
 def main():
     # Create the parser
@@ -57,12 +67,19 @@ def main():
         logger.error("Must provide different positions you would like us to attempt to apply jobs for you")
         return
 
+    # In the future set the model based on a config that is passed in.
+    global_config.AI_MODEL = OpenAiActionWrapper(
+        ChatOpenAI(
+            model_name="gpt-4o-mini", openai_api_key=global_config.API_KEY, temperature=global_config.LLM_TEMPERATURE
+        ),
+        enable_logging=False
+    )
+
     # Attempt to go to linkedin and search
     linked_in_board_browser = LinkedInBoardBrowser(driver=WebDriverFactory().get_chrome_web_driver())
+    linked_in_board_browser.do_search(config["positions"], config)
+    linked_in_board_browser.extract_and_evaluate_jobs(global_config.RESUME, global_config.AI_MODEL)
 
-    linked_in_board_browser.do_search(config["positions"])
-
-    logger.info("Successfuly searched")
     logger.info("Successfuly searched")
 
 

@@ -147,10 +147,10 @@ class ConfigValidator:
                 parameters[blacklist] = []
 
     @staticmethod
-    def validate_secrets(secrets_yaml_path: Path) -> str:
+    def validate_secrets(secrets_yaml_path: Path):
         """Validate the secrets YAML file and retrieve the LLM API key."""
         secrets = ConfigValidator.load_yaml(secrets_yaml_path)
-        mandatory_secrets = ["llm_api_key"]
+        mandatory_secrets = ["llm_api_key", "linkedin_email", "linkedin_password", "default_account_email", "default_account_password"]
 
         for secret in mandatory_secrets:
             if secret not in secrets:
@@ -159,7 +159,7 @@ class ConfigValidator:
             if not secrets[secret]:
                 raise ConfigError(f"Secret '{secret}' cannot be empty in {secrets_yaml_path}")
 
-        return secrets["llm_api_key"]
+        return secrets
 
     @staticmethod
     def validate_data_folder(app_data_folder: Path) -> Tuple[Path, Path, Path, Path]:
