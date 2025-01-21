@@ -17,7 +17,10 @@ def run_integration_tests():
 
         # Validate configuration and secrets
         config = ConfigValidator.validate_config(config_file)
-        global_config.API_KEY = ConfigValidator.validate_secrets(secrets_file)
+        secrets = ConfigValidator.validate_secrets(secrets_file)
+        global_config.API_KEY = secrets["llm_api_key"]
+        global_config.LINKEDIN_EMAIL = secrets["linkedin_email"]
+        global_config.LINKEDIN_PASSWORD = secrets["linkedin_password"]
     except ConfigError as ce:
         logger.error(f"Configuration error: {ce}")
         logger.error(

@@ -1,0 +1,13 @@
+TODO's
+
+Caleb:
+- Reduce extracted job html as much as possible to reduce token cost for evaluating jobs
+- Build in logic for only accepting jobs with a high enough chance to get a call back.
+- Externalize the job evaluation process from main into its own factory
+- Work into abstractly solving filling out of html for actual application sites (non-HMC specific solution)
+
+Brian:
+- Work on integration tests with the linkedin web_scrapper (probalby will need to make a dummy AIModel class)
+- Work on setting linkedin preferences
+- Work on documenting code with human readable explanations
+
