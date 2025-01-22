@@ -11,6 +11,9 @@ Custom logger class so that all communications with 3rd party api's / OLLAMA mod
 '''
 class LLMLogger:
 
+    #Used so we can report how much we are costing per run
+    total_run_cost = 0
+
     def __init__(self, llm: ChatOpenAI):
         self.llm = llm
 
@@ -43,6 +46,8 @@ class LLMLogger:
         output_tokens = token_usage["output_tokens"]
         input_tokens = token_usage["input_tokens"]
         total_tokens = token_usage["total_tokens"]
+
+        LLMLogger.total_run_cost += total_tokens
 
         # Extract model details from the response
         model_name = parsed_reply["response_metadata"]["model_name"]

@@ -30,3 +30,4 @@ class LinkedInBoardBrowserTest(unittest.TestCase):
         '''
         # TODO Please write this test.
         pass
+

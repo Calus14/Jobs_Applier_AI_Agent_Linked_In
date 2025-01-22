@@ -1,5 +1,7 @@
 import argparse
+import logging
 import traceback
+import sys
 from pathlib import Path
 
 from langchain_openai import ChatOpenAI
@@ -8,9 +10,16 @@ from local_config import global_config
 from src.data_objects.resume import Resume
 from src.logging import logger
 from src.utils.config_validator import ConfigValidator, ConfigError
+from src.utils.llm_utils.llm_logger import LLMLogger
 from src.utils.llm_utils.open_ai_action_wrapper import OpenAiActionWrapper
 from src.utils.web_scrapping.job_boards.linked_in_board_browser import LinkedInBoardBrowser
 from src.utils.web_scrapping.web_driver_factory import WebDriverFactory
+
+handler = logging.StreamHandler(sys.stdout)
+
+root_logger = logging.getLogger("root_logger")
+root_logger.setLevel(logging.DEBUG)
+root_logger.addHandler(handler)
 
 def load_config():
     try:
@@ -35,18 +44,18 @@ def load_config():
         return config
 
     except ConfigError as ce:
-        logger.error(f"Configuration error: {ce}")
-        logger.error(
+        root_logger.error(f"Configuration error: {ce}")
+        root_logger.error(
             "Refer to the configuration guide for troubleshooting on this projects github readme!"
         )
     except FileNotFoundError as fnf:
-        logger.error(f"File not found: {fnf}")
-        logger.error("Ensure all required files are present in the data folder.")
+        root_logger.error(f"File not found: {fnf}")
+        root_logger.error("Ensure all required files are present in the data folder.")
     except RuntimeError as re:
-        logger.error(f"Runtime error: {re}")
-        logger.debug(traceback.format_exc())
+        root_logger.error(f"Runtime error: {re}")
+        root_logger.debug(traceback.format_exc())
     except Exception as e:
-        logger.exception(f"An unexpected error occurred: {e}")
+        root_logger.exception(f"An unexpected error occurred: {e}")
 
 def main():
     # Create the parser
@@ -64,23 +73,30 @@ def main():
 
 
     if not config["positions"] or len(config["positions"]) == 0:
-        logger.error("Must provide different positions you would like us to attempt to apply jobs for you")
+        root_logger.error("Must provide different positions you would like us to attempt to apply jobs for you")
         return
 
     # In the future set the model based on a config that is passed in.
     global_config.AI_MODEL = OpenAiActionWrapper(
         ChatOpenAI(
-            model_name="gpt-4o-mini", openai_api_key=global_config.API_KEY, temperature=global_config.LLM_TEMPERATURE
+            model_name=global_config.LLM_MODEL, openai_api_key=global_config.API_KEY, temperature=global_config.LLM_TEMPERATURE
         ),
-        enable_logging=False
+        enable_logging=True
     )
 
-    # Attempt to go to linkedin and search
     linked_in_board_browser = LinkedInBoardBrowser(driver=WebDriverFactory().get_chrome_web_driver())
-    linked_in_board_browser.do_search(config["positions"], config)
-    linked_in_board_browser.extract_and_evaluate_jobs(global_config.RESUME, global_config.AI_MODEL)
 
-    logger.info("Successfuly searched")
+    try:
+        # Attempt to go to linkedin and search
+        linked_in_board_browser.do_search(config["positions"], config)
+        job_postings = linked_in_board_browser.extract_and_evaluate_jobs(global_config.RESUME, global_config.AI_MODEL, config["max_jobs_apply_to"])
+        most_likely_postings = sorted(job_postings, key=lambda posting: posting.interview_chance, reverse=True)
+        for posting in most_likely_postings:
+            root_logger.info(f"Found a job posting with url {posting.url_link} and we have a {posting.interview_chance} of getting an interview and {posting.hired_chance} of getting hired")
+    finally:
+        linked_in_board_browser.close_browser()
+
+    root_logger.info(f"Finished running the applicaiton and spent a total of {LLMLogger.total_run_cost} credits")
 
 
 if __name__ == "__main__":

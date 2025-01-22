@@ -25,7 +25,7 @@ class OpenAiTests(unittest.TestCase):
         '''
         self.llm = OpenAiActionWrapper(
             ChatOpenAI(
-                model_name="gpt-4o-mini", openai_api_key=global_config.API_KEY, temperature=global_config.LLM_TEMPERATURE
+                model_name=global_config.LLM_MODEL, openai_api_key=global_config.API_KEY, temperature=global_config.LLM_TEMPERATURE
             ),
             enable_logging=False
         )

@@ -20,11 +20,12 @@ class LinkedInBoardBrowser(JobBoardBrowser):
     '''
     TODO add comments explaining any nuiances on how this works.
     '''
-
-    default_url = "https://www.linkedin.com/login"
     search_url = "https://www.linkedin.com/jobs"
-    feed_url = "linkedin.com/feed"
+    feed_url = "https://www.linkedin.com/feed"
 
+    '''
+    XPaths for element searching below
+    '''
     email_xpath = '//*[@id="username"]'
     password_xpath = '//*[@id="password"]'
     sign_in_xpath = '//*/button[@type="submit"]'
@@ -39,9 +40,18 @@ class LinkedInBoardBrowser(JobBoardBrowser):
     job_apply_link_button_xpath = '//*/div[@class="jobs-apply-button--top-card"]/button[@role="link"]'
     easy_apply_link_button_xpath = '//*/div[@class="jobs-apply-button--top-card"]/*/span[text()="Easy Apply"]'
 
+    '''
+    AI Prompt handling strings
+    '''
     matching_prompt = "job_matching_prompts"
     matching_call_chance_phrase = "Chance to get a call for the position: "
     matching_hired_chance_phrase = "Chance to be hired for the position: "
+
+    '''
+    Linkedin specific info to track what "page" we are on
+    '''
+    linkedin_page_incrementor_string = "&start="
+    linkedin_jobs_per_page = 25
 
     logger = logging.getLogger("linked_in_board_browser")
     #State variable that allows us to not try and extract jobs if we have not searched them.
@@ -51,12 +61,17 @@ class LinkedInBoardBrowser(JobBoardBrowser):
         '''
         TODO Setup the driver so that it can make calls to Linkedin and actions on it. 
         '''
-        self.driver.get(self.default_url)
+        self.driver.get(self.feed_url)
         self.driver.maximize_window()
+
+        self.load_job_board_cookies()
+
         # Sleep for 1 second so we can let Javascript run and get any further info needed for the client
         time.sleep(1)
 
-        self._do_login_()
+        #should only need to login if the cookie is expired.
+        if "linkedin.com/uas/login" in self.driver.current_url:
+            self._do_login_()
 
     def do_search(self, search_terms: str, config: {}):
         self.driver.get(self.search_url)
@@ -84,7 +99,7 @@ class LinkedInBoardBrowser(JobBoardBrowser):
         search_input.send_keys(Keys.RETURN)
         time.sleep(2)
 
-    def extract_and_evaluate_jobs(self, resume: Resume, ai_model) -> list[JobPosting]:
+    def extract_and_evaluate_jobs(self, resume: Resume, ai_model, jobs_to_find = 10) -> list[JobPosting]:
         '''
         Attempts to evaluate the job board which the webdriver should be connected to and evaluates each job get a posting
         as well as an AI evalutaion score on how likely that we are to fit that jobs description.
@@ -99,14 +114,35 @@ class LinkedInBoardBrowser(JobBoardBrowser):
 
         # The actual things we want to build fully evaulte before returning
         job_postings = []
+        #Start on the first page (zero indexed)
+        self.current_page = 0
 
-        # Iterate down each job element, click it, and extract the job details
-        job_elements = self.driver.find_elements(By.XPATH, self.job_list_xpath)
-        for element in job_elements:
-            element.click()
-            job_posting = self._create_job_posting_from_client_(resume, ai_model)
-            if job_posting is not None:
-                job_postings.append(job_posting)
+        # Until we have enough postings, or until we cannot click the "next" page of jobs"
+        while len(job_postings) < jobs_to_find:
+            job_elements = self.driver.find_elements(By.XPATH, self.job_list_xpath)
+            # Iterate down each job element, click it, and extract the job details
+            for element in job_elements:
+                try:
+                    element.click()
+                except Exception as e:
+                    self.logger.error(f"Unable to click job element! Exception: " + str(e))
+                    continue
+
+                job_posting = self._create_job_posting_from_client_(resume, ai_model)
+                if job_posting is not None:
+                    job_postings.append(job_posting)
+
+                if len(job_postings) >= jobs_to_find:
+                    break
+
+            #If we need to get more jobs, click on the "next" page
+            if self._get_next_page_of_jobs_():
+                self.current_page += 1
+            else:
+                # We arent able to get any more jobs from more pages so return
+                return job_postings
+
+        return job_postings
 
     def create_application_job(self, postings: list[JobPosting], resume:  Resume, job_prefs: JobApplicationProfile) -> list[ApplicationJobConfigs]:
         '''
@@ -201,9 +237,11 @@ class LinkedInBoardBrowser(JobBoardBrowser):
 
             job_posting_url = self.driver.current_url
 
-            job_posting = JobPosting(job_details_html_string, job_posting_url, chance_of_interview, chance_of_hire)
-            return None
+            self.driver.close()
+            self.driver.switch_to.window(client_tabs[0])
 
+            job_posting = JobPosting(job_details_html_string, job_posting_url, chance_of_interview, chance_of_hire)
+            return job_posting
 
         except NoSuchElementException as no_job_except:
             # If this is an easy apply job, they have such a negative review and different work flow we will not apply to them.
@@ -216,6 +254,22 @@ class LinkedInBoardBrowser(JobBoardBrowser):
                 return None
 
         time.sleep(1)
+
+    def _get_next_page_of_jobs_(self) -> bool:
+        '''
+        Method that attempts to load the next set of jobs by simply adding a start term to the current url to
+        pull new jobs into the client
+        :return: True if we successfully clicked the element, False if an exception occured, but was handled
+        '''
+        next_amount = str(self.current_page*25)
+        next_page_url = self.driver.current_url + self.linkedin_page_incrementor_string + next_amount
+        try:
+            self.driver.get(next_page_url)
+        except Exception as e:
+            self.logger.error(f"Unable to load next pages of job because we were unable to get the URL for the next page {next_page_url}")
+            return False
+
+        return True
 
     def _evaluate_chance_of_landing_job_(self, ai_model, job_html_string: str, resume: Resume) -> Tuple[int, int]:
         '''
@@ -238,9 +292,10 @@ class LinkedInBoardBrowser(JobBoardBrowser):
             matching_chain = matching_prompt | ai_model | StrOutputParser()
             matching_answer = matching_chain.invoke({})
             # Make sure our answer has our target groups
-            if self.matching_call_chance_phrase not in matching_answer or self.matching_hired_chance_phrase not in matching_answer:
+            if matching_answer.find(self.matching_call_chance_phrase) < 0 or matching_answer.find(self.matching_hired_chance_phrase) < 0:
                 self.logger.error(f"Received response from OpenAI of {matching_answer} but it does not contain our search groups to extract the values.")
-                return [0,0]
+                return [0, 0]
+
             # Use strict format to our advantage and avoid regex issues
             call_start_index = matching_answer.find(self.matching_call_chance_phrase) + len(self.matching_call_chance_phrase)
             call_end_index = matching_answer.find("%", call_start_index)
@@ -255,4 +310,5 @@ class LinkedInBoardBrowser(JobBoardBrowser):
             self.logger.error(e)
             return [0, 0]
 
-        return [50, 50]
+        return [0, 0]
+

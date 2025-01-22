@@ -7,10 +7,13 @@ from selenium.webdriver.firefox.service import Service as FireFoxService
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 
+from local_config import global_config
+
+
 class WebDriverFactory():
     '''
     Factory class that allows us to specify drivers that will be used for specific functions
-    (Visual if need be, non-visual, cookies, etc.)
+    (Visual if need be, non-visual, etc.)
     '''
 
     logger = logging.getLogger("web_driver_factory")
@@ -33,6 +36,7 @@ class WebDriverFactory():
                                       options=self.chrome_browser_options())
             self.logger.debug("Chrome Browser initialized successfully.")
             return driver
+
         except Exception as e:
             self.logger.error(f"Failed to initialize chrome browser: {str(e)}")
             raise RuntimeError(f"Failed to initialize chrome browser: {str(e)}")
@@ -44,7 +48,7 @@ class WebDriverFactory():
         try:
             # Use webdriver_manager to handle ChromeDriver
             driver = webdriver.Firefox(service=FireFoxService(GeckoDriverManager().install()),
-                                      options=self.firefox_browser_options())
+                                       options=self.firefox_browser_options())
             self.logger.debug("FireFox Browser initialized successfully.")
             return driver
         except Exception as e:
