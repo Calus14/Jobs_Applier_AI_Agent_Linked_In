@@ -12,22 +12,23 @@ LOG_TO_CONSOLE = False
 
 class GlobalConfig:
     def __init__(self):
+        # File directory configuration paths
         base_directory = Path(__file__).resolve().parent
         self.ASSETS_DIRECTORY: Path = base_directory / "assets"
         self.STYLES_RESUME_DIRECTORY: Path = self.ASSETS_DIRECTORY / "styles" / "resumes"
         self.STYLES_RESUME_DIRECTORY: Path = self.ASSETS_DIRECTORY / "styles" / "cover_letters"
-
         self.PROMPTS_DIRECTORY: Path = base_directory / "src" / "utils" / "llm_utils" / "prompts"
-
         self.LOG_OUTPUT_FILE_PATH: Path = Path("data_folder/output")
 
+        # Job board specific configurations
         self.LINKEDIN_EMAIL: str = ''
         self.LINKEDIN_PASSWORD: str = ''
 
+        #User Specific configuration
         self.RESUME = None
 
+        # AI Configuration
         self.API_KEY: str = ''
-
         self.LLM_MODEL_TYPE = 'openai'
         self.LLM_MODEL = 'gpt-4o'
         # Variable that controls the randomness of the model's outputs, going from 0.0-2.0

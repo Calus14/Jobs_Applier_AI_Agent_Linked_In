@@ -1,7 +1,7 @@
 TODO's
 
 Caleb:
-- Reduce extracted job html as much as possible to reduce token cost for evaluating jobs
+- Look into storing my resume in the AI models state so we can reduce the amount of tokens sent for each job evaluation
 - Build in logic for only accepting jobs with a high enough chance to get a call back.
 - Externalize the job evaluation process from main into its own factory
 - Work into abstractly solving filling out of html for actual application sites (non-HMC specific solution)

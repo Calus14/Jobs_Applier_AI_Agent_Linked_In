@@ -1,6 +1,10 @@
 remote: true
 hybrid: true
 onsite: true
+chance_call_threshold: 50
+chance_hire_threshold: 30
+
+max_jobs_apply_to: 25
 
 experience_level:
   internship: false

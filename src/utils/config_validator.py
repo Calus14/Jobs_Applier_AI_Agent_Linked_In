@@ -19,6 +19,9 @@ class ConfigValidator:
     EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
     REQUIRED_CONFIG_KEYS = {
         "remote": bool,
+        "chance_call_threshold": int,
+        "chance_hire_threshold": int,
+        "max_jobs_apply_to": int,
         "experience_level": dict,
         "job_types": dict,
         "date": dict,
