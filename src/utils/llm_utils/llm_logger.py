@@ -51,13 +51,6 @@ class LLMLogger:
 
         # Extract model details from the response
         model_name = parsed_reply["response_metadata"]["model_name"]
-        prompt_price_per_token = 0.00000015
-        completion_price_per_token = 0.0000006
-
-        # Calculate the total cost of the API call
-        total_cost = (input_tokens * prompt_price_per_token) + (
-                output_tokens * completion_price_per_token
-        )
 
         # Create a log entry with all relevant information
         log_entry = {
@@ -68,7 +61,6 @@ class LLMLogger:
             "total_tokens": total_tokens,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "total_cost": total_cost,
         }
 
         # Write the log entry to the log file in JSON format

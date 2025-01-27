@@ -10,4 +10,3 @@ Brian:
 - Work on integration tests with the linkedin web_scrapper (probalby will need to make a dummy AIModel class)
 - Work on setting linkedin preferences
 - Work on documenting code with human readable explanations
-

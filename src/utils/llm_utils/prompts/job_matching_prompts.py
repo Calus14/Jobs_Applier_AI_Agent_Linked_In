@@ -15,7 +15,7 @@ prompt_template = """
 ### Resume:
 {resume}
 
-### Answer in the exact format:
+### Answer in the exact format to a single digit precision:
 Chance to get a call for the position: [0-100]%
 Chance to be hired for the position: [0-100]%
 """

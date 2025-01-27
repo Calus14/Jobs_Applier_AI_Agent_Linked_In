@@ -4,6 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.firefox.service import Service as FireFoxService
+from selenium.webdriver.remote.webdriver import BaseWebDriver
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 
@@ -26,7 +27,7 @@ class WebDriverFactory():
         options = webdriver.FirefoxOptions()
         return options
 
-    def get_chrome_web_driver(self):
+    def get_chrome_web_driver(self) -> BaseWebDriver:
         '''
         :return: web-driver for chrome
         '''

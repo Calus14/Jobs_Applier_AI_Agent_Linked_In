@@ -30,7 +30,7 @@ class GlobalConfig:
         # AI Configuration
         self.API_KEY: str = ''
         self.LLM_MODEL_TYPE = 'openai'
-        self.LLM_MODEL = 'gpt-4o'
+        self.LLM_MODEL = 'gpt-4o-mini'
         # Variable that controls the randomness of the model's outputs, going from 0.0-2.0
         self.LLM_TEMPERATURE = 0.7
         # Only required for OLLAMA models

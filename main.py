@@ -1,11 +1,12 @@
 import argparse
 import logging
+import os
 import traceback
 import sys
 from pathlib import Path
 
+import yaml
 from langchain_openai import ChatOpenAI
-
 from local_config import global_config
 from src.data_objects.resume import Resume
 from src.logging import logger
@@ -14,6 +15,13 @@ from src.utils.llm_utils.llm_logger import LLMLogger
 from src.utils.llm_utils.open_ai_action_wrapper import OpenAiActionWrapper
 from src.utils.web_scrapping.job_boards.linked_in_board_browser import LinkedInBoardBrowser
 from src.utils.web_scrapping.web_driver_factory import WebDriverFactory
+
+
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.schema import Document
+
 
 handler = logging.StreamHandler(sys.stdout)
 
@@ -31,6 +39,8 @@ def load_config():
         config = ConfigValidator.validate_config(config_file)
         secrets = ConfigValidator.validate_secrets(secrets_file)
         global_config.API_KEY = secrets["llm_api_key"]
+        # NEEDED for some Open AI libraries to be on the OS path like Embeddings
+        os.environ["OPENAI_API_KEY"] = global_config.API_KEY
         global_config.LINKEDIN_EMAIL = secrets["linkedin_email"]
         global_config.LINKEDIN_PASSWORD = secrets["linkedin_password"]
 
@@ -70,8 +80,6 @@ def main():
     config = load_config()
 
     """Main entry point for the Job Application Bot."""
-
-
     if not config["positions"] or len(config["positions"]) == 0:
         root_logger.error("Must provide different positions you would like us to attempt to apply jobs for you")
         return

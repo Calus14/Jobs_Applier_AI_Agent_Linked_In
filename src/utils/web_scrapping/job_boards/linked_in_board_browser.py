@@ -3,6 +3,9 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from selenium.common import NoSuchElementException, ElementClickInterceptedException
 from typing import Tuple
+
+from selenium.webdriver.remote.webdriver import BaseWebDriver
+
 from local_config import global_config
 import logging
 from src.data_objects.application_job_configs import ApplicationJobConfigs
@@ -56,7 +59,7 @@ class LinkedInBoardBrowser(JobBoardBrowser):
     logger = logging.getLogger("linked_in_board_browser")
     #State variable that allows us to not try and extract jobs if we have not searched them.
 
-    def __init__(self, driver):
+    def __init__(self, driver: BaseWebDriver):
         super().__init__(driver)
         '''
         TODO Setup the driver so that it can make calls to Linkedin and actions on it. 
@@ -107,18 +110,18 @@ class LinkedInBoardBrowser(JobBoardBrowser):
         :param ai_model: what AI model will we be asking questions of
         :return: array of Job Posting objects
         '''
-
-        # Scroll the list of jobs to the bottom so we can get all elements at once.
-        job_list_scroll = self.driver.find_element(By.XPATH, self.job_list_scroll_xpath)
-        SeleniumUtils.scroll_element_in_steps(self.driver, job_list_scroll)
-
         # The actual things we want to build fully evaulte before returning
         job_postings = []
         #Start on the first page (zero indexed)
         self.current_page = 0
 
+        # Scroll the list of jobs to the bottom so we can get all elements at once.
+        job_list_scroll = self.driver.find_element(By.XPATH, self.job_list_scroll_xpath)
+        SeleniumUtils.scroll_element_in_steps(self.driver, job_list_scroll)
+
         # Until we have enough postings, or until we cannot click the "next" page of jobs"
         while len(job_postings) < jobs_to_find:
+
             job_elements = self.driver.find_elements(By.XPATH, self.job_list_xpath)
             # Iterate down each job element, click it, and extract the job details
             for element in job_elements:
@@ -269,6 +272,12 @@ class LinkedInBoardBrowser(JobBoardBrowser):
             self.logger.error(f"Unable to load next pages of job because we were unable to get the URL for the next page {next_page_url}")
             return False
 
+        try:
+            # Scroll the list of jobs to the bottom so we can get all elements at once.
+            job_list_scroll = self.driver.find_element(By.XPATH, self.job_list_scroll_xpath)
+            SeleniumUtils.scroll_element_in_steps(self.driver, job_list_scroll)
+        except Exception as e:
+            self.logger.error("Unable to find scroll element and scroll to bottom to load all jobs for this page!")
         return True
 
     def _evaluate_chance_of_landing_job_(self, ai_model, job_html_string: str, resume: Resume) -> Tuple[int, int]:
@@ -311,4 +320,5 @@ class LinkedInBoardBrowser(JobBoardBrowser):
             return [0, 0]
 
         return [0, 0]
+
 
