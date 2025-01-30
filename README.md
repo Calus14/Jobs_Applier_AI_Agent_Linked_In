@@ -1,23 +1,21 @@
 <a name="top"></a>
 <div align="center">
-<img src="./assets/AIHawk.png">
+<img src="./assets/pikachu.jpg">
 
-# Jobs Applier AI Agent - HMC Specific for Linkedin
+# Job Applier Agent 
+**A project that uses AI to navigate Linked_In Job boards, find jobs that your are most likely to get, and then uses AI to navigate the application pages and fill out relevant information!**
 
 **Forked from [AI Hawk project] (https://github.com/feder-cr/Jobs_Applier_AI_Agent)**
 
+*Forked Project used as inspiration, almost none of its code other than writing html to pdf is used, if you are looking for a natural extension of what that project was doing this may not be the place to look* 
+
 </div>
-
-
-This project is aimed to be an exploratory side project that attempts to benefit others by allowing people to automate job applications at the expense of their own openAI credits or their own running OLLAMA model.
-
 
 **Project Maintainers / Leads**: [Caleb](https://github.com/Calus14)
 
-**General Workflow Documentations**: Using draw.io (a free software diagramming program online), all documents should be stored in the documents directory. Please add documentation to explain any general object relationships or any general pattern for object use.
+**General Documentation**: Using draw.io (a free software diagramming program online), all documents should be stored in the documents directory. Please add documentation to explain any general object relationships or any general pattern for object use.
 
 **Project Layout**
-
 
 ## Table of Contents
 
@@ -35,12 +33,19 @@ This project is aimed to be an exploratory side project that attempts to benefit
 
 ## Introduction
 
-This project is an extension of a cutting-edge, automated tool designed to revolutionize the job search and application process. In today's fiercely competitive job market, where opportunities can vanish in the blink of an eye, this program offers job seekers a significant advantage by leveraging the power of automation and artificial intelligence.
+This project is a smart, automated job application tool that takes the hassle out of job hunting. It crawls specific job boards, uses AI to only apply to jobs you're actually qualified for, and then handles the entire application process for you. It can even auto-generate resumes and cover letters tailored to each job!
 
-### The Challenge of Modern Job Hunting
+Here’s how it works:
 
-In the digital age, the job search landscape has undergone a dramatic transformation. While online platforms have opened up a world of opportunities, they have also intensified competition. Job seekers often find themselves spending countless hours scrolling through listings, tailoring applications, and repetitively filling out forms. This process can be not only time-consuming but also emotionally draining, leading to job search fatigue and missed opportunities.
+It navigates job boards, identifies the right jobs, and fills out applications like a pro.
 
+It uses AI to understand job requirements and your qualifications, so you don’t waste time on jobs that aren’t a good fit.
+
+It automatically fills out forms, handles pop-ups, and submits applications—no manual work required.
+
+Once it’s done, it lets you know exactly which jobs you applied for and what info was submitted.
+
+Basically, it’s like having a personal assistant who’s really good at applying to jobs. No more endless clicking, copying, and pasting—just sit back and let the tool do the heavy lifting.
 
 ## Installation
 
@@ -70,12 +75,17 @@ In the digital age, the job search landscape has undergone a dramatic transforma
 3. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/code-infected/Auto_Jobs_Applier_AI_Agent.git
+   git clone https://github.com/Calus14/Jobs_Applier_AI_Agent_Linked_In
    
-   cd Auto_Jobs_Applier_AI_Agent
+   cd Jobs_Applier_AI_Agent_Linked_In
    ```
 
 4. **Activate virtual environment:**
+
+  **NOTE**: some instances will complain about line endings: *$'\r': command not found* when this occurs run the following command: 
+  ```bash
+  sed -i 's/\r$//' <path to activate file>
+  ```
 
    For Unix-based machines -
    ```bash
@@ -92,7 +102,7 @@ In the digital age, the job search landscape has undergone a dramatic transforma
    .\virtual\Scripts\activate
    ```
 
-5. **Install the required packages:**
+6. **Install the required packages:**
 
    Before installing the required packages, make sure to install https://visualstudio.microsoft.com/visual-cpp-build-tools/ and select "Desktop development with C++".
 
@@ -172,34 +182,6 @@ Each section has specific fields to fill out:
     email: "jane.doe@example.com"
     github: "https://github.com/janedoe"
     linkedin: "https://www.linkedin.com/in/janedoe/"
-  ```
-
-- `education_details:`
-  - This section outlines your academic background, including degrees earned and relevant coursework.
-    - **degree**: The type of degree obtained (e.g., Bachelor's Degree, Master's Degree).
-    - **university**: The name of the university or institution where you studied.
-    - **final_evaluation_grade**: Your Grade Point Average or equivalent measure of academic performance.
-    - **start_date**: The start year of your studies.
-    - **graduation_year**: The year you graduated.
-    - **field_of_study**: The major or focus area of your studies.
-    - **exam**: A list of courses or subjects taken along with their respective grades.
-
-  - Example:
-
-  ```yaml
-  education_details:
-    - education_level: "Bachelor's Degree"
-      institution: "University of Example"
-      field_of_study: "Software Engineering"
-      final_evaluation_grade: "4/4"
-      start_date: "2021"
-      year_of_completion: "2023"
-      exam:
-        Algorithms: "A"
-        Data Structures: "B+"
-        Database Systems: "A"
-        Operating Systems: "A-"
-        Web Development: "B"
   ```
 
 - `experience_details:`
@@ -474,13 +456,7 @@ openai.RateLimitError: Error code: 429 - {'error': {'message': 'You exceeded you
 
 #### 2. Incorrect Information in Job Applications
 
-**Issue:** Bot provides inaccurate data for experience, CTC, and notice period
-
-**Solution:**
-
-- Update prompts for professional experience specificity
-- Add fields in `config.py` for current CTC, expected CTC, and notice period
-- Modify bot logic to use these new config fields
+*TODO: Fill this with details*
 
 #### 3. YAML Configuration Errors
 
@@ -502,8 +478,7 @@ yaml.scanner.ScannerError: while scanning a simple key
 - Verify all dependencies are installed and updated
 - Check internet connection stability
 - Clear browser cache and cookies if issues persist
-
-For further assistance, please create an issue on the [GitHub repository](https://github.com/feder-cr/Auto_Jobs_Applier_AIHawk/issues) with detailed information about your problem, including error messages and your configuration (with sensitive information removed).
+- Make sure no "chrome-driver" process is still running between runs
 
 ## Documentation
 
@@ -558,30 +533,11 @@ For further assistance, please create an issue on the [GitHub repository](https:
 - [Lang Chain Developer Documentation](https://python.langchain.com/v0.2/docs/integrations/components/)
 
 
-- If you encounter any issues, you can open an issue on [GitHub](https://github.com/feder-cr/Auto_Jobs_Applier_AIHawk/issues).
+- If you encounter any issues, you can open an issue on [GitHub](https://github.com/Calus14/Jobs_Applier_AI_Agent_Linked_In/issues).
   Please add valuable details to the subject and to the description. If you need a new feature then please reflect this.  
   I'll be more than happy to assist you!
 
 - Note for Contributors: If you would like to submit a Pull Request (PR), please target the `release` branch instead of `main`. The `release` branch is used for testing new code changes and will be periodically merged into `main` after validation. This approach ensures that only tested features are included in the main branch.
-
-## Conclusion
-
-Auto_Jobs_Applier_AIHawk provides a significant advantage in the modern job market by automating and enhancing the job application process. With features like dynamic resume generation and AI-powered personalization, it offers unparalleled flexibility and efficiency. Whether you're a job seeker aiming to maximize your chances of landing a job, a recruiter looking to streamline application submissions, or a career advisor seeking to offer better services, Auto_Jobs_Applier_AIHawk is an invaluable resource. By leveraging cutting-edge automation and artificial intelligence, this tool not only saves time but also significantly increases the effectiveness and quality of job applications in today's competitive landscape.
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=feder-cr/Auto_Jobs_Applier_AIHawk&type=Date)](https://star-history.com/#feder-cr/Auto_Jobs_Applier_AIHawk&Date)
-
-If you like the project please star ⭐ the repository!
-
-## Special Thanks
-[![Contributors](https://img.shields.io/github/contributors/feder-cr/Auto_Jobs_Applier_AIHawk)](https://github.com/feder-cr/Auto_Jobs_Applier_AIHawk/graphs/contributors)
-
-<a href="https://github.com/AIHawk-co/Auto_Jobs_Applier/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=AIHawk-co/Auto_Jobs_Applier" />
-</a>
-
-Made with [contrib.rocks](https://contrib.rocks).
 
 ## License
 
@@ -594,6 +550,6 @@ The CC BY License permits others to distribute, remix, adapt, and build upon you
 
 ## Disclaimer
 
-This tool, Auto_Jobs_Applier_AIHawk, is intended for use at your own risk. The creators / maintainers / contributors assume no responsibility for any consequences arising from its use. Users are advised to comply with the terms of service of relevant platforms and adhere to all applicable laws, regulations, and ethical guidelines. The use of automated tools for job applications may carry risks, including potential impacts on user accounts. Proceed with caution and at your own discretion.
+This tool, is intended for use at your own risk. The creators / maintainers / contributors assume no responsibility for any consequences arising from its use. Users are advised to comply with the terms of service of relevant platforms and adhere to all applicable laws, regulations, and ethical guidelines. The use of automated tools for job applications may carry risks, including potential impacts on user accounts. Proceed with caution and at your own discretion.
 
 [Back to top 🚀](#top)
