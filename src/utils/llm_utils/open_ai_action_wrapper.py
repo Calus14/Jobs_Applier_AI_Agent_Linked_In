@@ -1,10 +1,11 @@
 import openai
 import time
 from typing import Dict, List
+
+from langchain_community.callbacks import get_openai_callback
 from langchain_core.messages.ai import AIMessage
 from langchain_openai import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
-from local_config import global_config
 from loguru import logger
 from requests.exceptions import HTTPError as HTTPStatusError
 from src.utils.llm_utils.llm_logger import LLMLogger
@@ -15,6 +16,11 @@ chat GPT models
 """
 
 class OpenAiActionWrapper:
+    # This controls how many times we attempt to contact openAI to get an answer before declaring it an error
+    MAX_OPEN_AI_RETRIES = 3
+
+    # This is how long we wait for a 200 response from openAI before declaring it timeout'd
+    OPEN_AI_DELAY = 10
 
     def __init__(self, llm: ChatOpenAI, enable_logging=True):
         self.llm = llm
@@ -23,7 +29,7 @@ class OpenAiActionWrapper:
         self.embeddings = None
 
     def __call__(self, messages: List[Dict[str, str]]) -> str:
-        for attempt in range(global_config.MAX_OPEN_AI_RETRIES):
+        for attempt in range(OpenAiActionWrapper.MAX_OPEN_AI_RETRIES):
             try:
                 #This is calling the open AI api with a
                 reply = self.llm.invoke(messages)
@@ -33,15 +39,15 @@ class OpenAiActionWrapper:
                 return reply
             except (openai.RateLimitError, HTTPStatusError) as err:
                 if isinstance(err, HTTPStatusError) and err.response.status_code == 429:
-                    logger.warning(f"HTTP 429 Too Many Requests: Waiting for {global_config.OPEN_AI_DELAY} seconds before retrying (Attempt {attempt + 1}/{global_config.MAX_OPEN_AI_RETRIES})...")
-                    time.sleep(global_config.OPEN_AI_DELAY)
+                    logger.warning(f"HTTP 429 Too Many Requests: Waiting for {OpenAiActionWrapper.OPEN_AI_DELAY} seconds before retrying (Attempt {attempt + 1}/{OpenAiActionWrapper.MAX_OPEN_AI_RETRIES})...")
+                    time.sleep(OpenAiActionWrapper.OPEN_AI_DELAY)
                 else:
                     wait_time = self.parse_wait_time_from_error_message(str(err))
-                    logger.warning(f"Rate limit exceeded or API error. Waiting for {wait_time} seconds before retrying (Attempt {attempt + 1}/{global_config.MAX_OPEN_AI_RETRIES})...")
+                    logger.warning(f"Rate limit exceeded or API error. Waiting for {wait_time} seconds before retrying (Attempt {attempt + 1}/{OpenAiActionWrapper.MAX_OPEN_AI_RETRIES})...")
                     time.sleep(wait_time)
             except Exception as e:
-                logger.error(f"Unexpected error occurred: {str(e)}, retrying in {global_config.OPEN_AI_DELAY} seconds... (Attempt {attempt + 1}/{global_config.MAX_OPEN_AI_RETRIES})")
-                time.sleep(global_config.OPEN_AI_DELAY)
+                logger.error(f"Unexpected error occurred: {str(e)}, retrying in {OpenAiActionWrapper.OPEN_AI_DELAY} seconds... (Attempt {attempt + 1}/{OpenAiActionWrapper.MAX_OPEN_AI_RETRIES})")
+                time.sleep(OpenAiActionWrapper.OPEN_AI_DELAY)
 
         logger.critical("Failed to get a response from the model after multiple attempts.")
         raise Exception("Failed to get a response from the model after multiple attempts.")
@@ -70,36 +76,34 @@ class OpenAiActionWrapper:
         }
         return parsed_result
 
-    def embedd_string_for_future_chats(self, string_to_embed :str, embedded_string_key):
+    def embed_string(self, string_to_embed :str):
         '''
-        Utility method that takes a string which will be used as a parameter to an open ai chat and condensess it to an
-        embedded string that can be later give to the Model to represent the original large string, and stores it
-        in a local dictionary for future use
+        Utility method that takes a string and converts it to an AI representation so that which is a vector or weights
+        that represent what that string represents.
 
-        Used with the get_ebedded_string method to get
         :param string: The string that we wish to "squish" via embedding
-        :param string: The key this embedding should be stored and retrieved by
+        :return vector embedding of string
         '''
-        if embedded_string_key in self.embedded_dictionary:
-            logger.error(f"Tried to add an embedded string with key {embedded_string_key} which already exists in this wrappers embedded dictionary!")
-            return
-
         if not self.embeddings:
             self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small", )
 
-        embedded_vector = self.embeddings.embed_query(string_to_embed)
-        self.embedded_dictionary[embedded_string_key] = embedded_vector
+        with get_openai_callback() as cb:
+            embedded_vector = self.embeddings.embed_query(string_to_embed)
+            LLMLogger.total_run_cost += cb.total_tokens
+
         return embedded_vector
 
-    def get_embedded_string(self, embedded_string_key):
+    def embed_documents(self, documents: list[str]):
         '''
-        Method that returns the vector for a given string that was supposed to be embedded and stored in our dictionary
-
-        :param embedded_string_key: the key that the embedded string would have been stored with.
-        :return: the vector string representing that string
+        Wrapper for calling embeddings on multiple documents at a time
+        :param documents: the strings you wish to embed
+        :return: dictionary of embeddings
         '''
-        if embedded_string_key not in self.embedded_dictionary:
-            logger.error(f"Tried to get an embedded string with key {embedded_string_key} which does not exist in this wrappers embedded dictionary!")
-            return
+        if not self.embeddings:
+            self.embeddings = OpenAIEmbeddings(model="text-embedding-3-small", )
 
-        return self.embedded_dictionary[embedded_string_key]
+        with get_openai_callback() as cb:
+            embedded_vectors = self.embeddings.embed_documents(documents)
+            LLMLogger.total_run_cost += cb.total_tokens
+
+        return embedded_vectors

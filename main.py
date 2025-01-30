@@ -7,27 +7,22 @@ from pathlib import Path
 
 import yaml
 from langchain_openai import ChatOpenAI
-from local_config import global_config
+from local_config import global_config, LocalLogging
+from src.data_objects.job_posting import JobPosting
 from src.data_objects.resume import Resume
-from src.logging import logger
 from src.utils.config_validator import ConfigValidator, ConfigError
 from src.utils.llm_utils.llm_logger import LLMLogger
 from src.utils.llm_utils.open_ai_action_wrapper import OpenAiActionWrapper
+from src.utils.web_scrapping.hcm.vector_store_hcm_crawler import VectorStoreHcmCrawler
 from src.utils.web_scrapping.job_boards.linked_in_board_browser import LinkedInBoardBrowser
 from src.utils.web_scrapping.web_driver_factory import WebDriverFactory
 
 
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
+from langchain_community.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 
-
-handler = logging.StreamHandler(sys.stdout)
-
-root_logger = logging.getLogger("root_logger")
-root_logger.setLevel(logging.DEBUG)
-root_logger.addHandler(handler)
+main_logger = LocalLogging.get_local_logger("main_script.py")
 
 def load_config():
     try:
@@ -43,6 +38,8 @@ def load_config():
         os.environ["OPENAI_API_KEY"] = global_config.API_KEY
         global_config.LINKEDIN_EMAIL = secrets["linkedin_email"]
         global_config.LINKEDIN_PASSWORD = secrets["linkedin_password"]
+        global_config.DEFAULT_EMAIL = secrets["default_account_email"]
+        global_config.DEFAULT_PASSWORD = secrets["default_account_password"]
 
         with open(plain_text_resume_file, "r", encoding="utf-8") as file:
             plain_text_resume = file.read()
@@ -54,18 +51,18 @@ def load_config():
         return config
 
     except ConfigError as ce:
-        root_logger.error(f"Configuration error: {ce}")
-        root_logger.error(
+        main_logger.error(f"Configuration error: {ce}")
+        main_logger.error(
             "Refer to the configuration guide for troubleshooting on this projects github readme!"
         )
     except FileNotFoundError as fnf:
-        root_logger.error(f"File not found: {fnf}")
-        root_logger.error("Ensure all required files are present in the data folder.")
+        main_logger.error(f"File not found: {fnf}")
+        main_logger.error("Ensure all required files are present in the data folder.")
     except RuntimeError as re:
-        root_logger.error(f"Runtime error: {re}")
-        root_logger.debug(traceback.format_exc())
+        main_logger.error(f"Runtime error: {re}")
+        main_logger.debug(traceback.format_exc())
     except Exception as e:
-        root_logger.exception(f"An unexpected error occurred: {e}")
+        main_logger.exception(f"An unexpected error occurred: {e}")
 
 def main():
     # Create the parser
@@ -81,7 +78,7 @@ def main():
 
     """Main entry point for the Job Application Bot."""
     if not config["positions"] or len(config["positions"]) == 0:
-        root_logger.error("Must provide different positions you would like us to attempt to apply jobs for you")
+        main_logger.error("Must provide different positions you would like us to attempt to apply jobs for you")
         return
 
     # In the future set the model based on a config that is passed in.
@@ -92,19 +89,25 @@ def main():
         enable_logging=True
     )
 
-    linked_in_board_browser = LinkedInBoardBrowser(driver=WebDriverFactory().get_chrome_web_driver())
+    test_posting = JobPosting(html_string="",
+                              url_link= "https://jobs.lever.co/kochava/1b4a3c3d-e05b-494f-ac40-9f5aefbe0733",
+                              interview_chance=100, hired_chance=100)
+    test_crawler = VectorStoreHcmCrawler(driver=WebDriverFactory().get_chrome_web_driver(), posting=test_posting)
+    test_crawler.do_application_flow()
 
-    try:
-        # Attempt to go to linkedin and search
-        linked_in_board_browser.do_search(config["positions"], config)
-        job_postings = linked_in_board_browser.extract_and_evaluate_jobs(global_config.RESUME, global_config.AI_MODEL, config["max_jobs_apply_to"])
-        most_likely_postings = sorted(job_postings, key=lambda posting: posting.interview_chance, reverse=True)
-        for posting in most_likely_postings:
-            root_logger.info(f"Found a job posting with url {posting.url_link} and we have a {posting.interview_chance} of getting an interview and {posting.hired_chance} of getting hired")
-    finally:
-        linked_in_board_browser.close_browser()
+    #linked_in_board_browser = LinkedInBoardBrowser(driver=WebDriverFactory().get_chrome_web_driver())
 
-    root_logger.info(f"Finished running the applicaiton and spent a total of {LLMLogger.total_run_cost} credits")
+    # try:
+    #     # Attempt to go to linkedin and search
+    #     linked_in_board_browser.do_search(config["positions"], config)
+    #     job_postings = linked_in_board_browser.extract_and_evaluate_jobs(global_config.RESUME, global_config.AI_MODEL, config["max_jobs_apply_to"])
+    #     most_likely_postings = sorted(job_postings, key=lambda posting: posting.interview_chance, reverse=True)
+    #     for posting in most_likely_postings:
+    #         main_logger.info(f"Found a job posting with url {posting.url_link} and we have a {posting.interview_chance} of getting an interview and {posting.hired_chance} of getting hired")
+    # finally:
+    #     linked_in_board_browser.close_browser()
+
+    main_logger.info(f"Finished running the applicaiton and spent a total of {LLMLogger.total_run_cost} credits")
 
 
 if __name__ == "__main__":

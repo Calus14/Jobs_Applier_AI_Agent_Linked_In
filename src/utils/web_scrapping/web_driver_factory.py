@@ -8,7 +8,7 @@ from selenium.webdriver.remote.webdriver import BaseWebDriver
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 
-from local_config import global_config
+from local_config import global_config, LocalLogging
 
 
 class WebDriverFactory():
@@ -17,7 +17,7 @@ class WebDriverFactory():
     (Visual if need be, non-visual, etc.)
     '''
 
-    logger = logging.getLogger("web_driver_factory")
+    logger = LocalLogging.get_local_logger("web_driver_factory")
 
     def chrome_browser_options(self) -> Options:
         options = webdriver.ChromeOptions()

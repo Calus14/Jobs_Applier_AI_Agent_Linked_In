@@ -1,16 +1,24 @@
-import logging
-from abc import ABC, abstractmethod
+import re
+from abc import abstractmethod
 from enum import Enum
 from typing import List
 
 from selenium.webdriver.remote.webelement import WebElement
 
-from local_config import global_config
+from local_config import global_config, LocalLogging
 from src.data_objects.job_posting import JobPosting
+from src.utils.web_scrapping.selenium_utils import SeleniumUtils
 from src.utils.web_scrapping.selenium_web_scrapper import SeleniumWebScrapper
 
 
 class HcmCrawler(SeleniumWebScrapper):
+    '''
+    Base class that needs to be extended by hcm specific crawlers. Each browser should be holding a web-driver that
+    will allow us to interact with the hcm site. Also there will be a "state" variable for all HCM management because
+    there is such a complex state. This state will be queryable for logging.
+    '''
+
+    snake_case_pattern = re.compile(r'(?<!^)(?=[A-Z])')
 
     class State(Enum):
         UN_STARTED = 1
@@ -22,16 +30,11 @@ class HcmCrawler(SeleniumWebScrapper):
         SUBMITTED_APPLICATION = 7
         ERROR = 8
 
-    '''
-    Base class that needs to be extended by hcm specific crawlers. Each browser should be holding a web-driver that
-    will allow us to interact with the hcm site. Also there will be a "state" variable for all HCM management because
-    there is such a complex state. This state will be queryable for logging.
-    '''
-
     def __init__(self, driver, posting: JobPosting):
+        super().__init__(driver)
         self.driver = driver
 
-        self.logger = logging.getLogger(__name__)
+        self.logger = LocalLogging.get_local_logger(__name__)
 
         if not posting:
             self.logger.error("Passed a null Job Posting to a HCM Crawler! Not able to make an HCM Crawler without a job posting!")
@@ -48,6 +51,7 @@ class HcmCrawler(SeleniumWebScrapper):
         self.application_logs = []
         self.internal_state: Enum = self.State.UN_STARTED
         self.app_elements_to_fill: List[WebElement] = []
+        self.elements_to_fill_out = []
 
     def __progress_state(self, new_state: Enum, change_msg: str):
         '''
@@ -70,26 +74,30 @@ class HcmCrawler(SeleniumWebScrapper):
 
         Please refer to documentation/hcm_state_flow.drawio diagram to see what is going on here
         '''
+
+        # Always scroll the page so that all elements are loaded before progressing to next step
+        SeleniumUtils.scroll_element_in_steps(self.driver)
+
         #See if we need to login, and if so move to that state, otherwise move to a logged in state
-        if self.state == self.State.UN_STARTED:
+        if self.internal_state == self.State.UN_STARTED:
             self._handle_unstarted_state()
         # If we are logging in, attempt to login, and if that fails attempt to create an ccount
-        elif self.state == self.State.LOGGING_IN:
+        elif self.internal_state == self.State.LOGGING_IN:
             self._handle_logging_in_state()
         # If we are creating an account, attempt to do so.
-        elif self.state == self.State.CREATING_ACCOUNT:
+        elif self.internal_state == self.State.CREATING_ACCOUNT:
             self._handle_creating_account()
         #see if we need to login, and move to the according state from there.
-        elif self.state == self.State.CREATED_ACCOUNT:
+        elif self.internal_state == self.State.CREATED_ACCOUNT:
             self._handle_created_account()
         # If we are logged in, attempt to get application elements, then fill them out until we get no elements to fill out
-        elif self.state == self.State.LOGGED_IN:
+        elif self.internal_state == self.State.LOGGED_IN:
             self._handle_logged_in()
-        elif self.state == self.State.FILLING_APPLICATION:
+        elif self.internal_state == self.State.FILLING_APPLICATION:
             self._handle_filling_application()
-        elif self.state == self.State.SUBMITTED_APPLICATION:
+        elif self.internal_state == self.State.SUBMITTED_APPLICATION:
             self._handle_submitted_application()
-        elif self.state == self.State.ERROR:
+        elif self.internal_state == self.State.ERROR:
             self._handle_error()
         else:
             self.logger.error("HCM_CRAWLER in a state that should be impossible")
@@ -99,6 +107,11 @@ class HcmCrawler(SeleniumWebScrapper):
     All methods below handle how the internal crawlers state moves in a specific state.
     '''
     def _handle_unstarted_state(self):
+        try:
+            self._progress_app_to_start()
+        except Exception as app_start_exc:
+            self.logger.info(f"Unable to progress app to start but may not need to progress to start.- {app_start_exc}")
+
         try:
             login_bool = self._requires_login()
         except Exception as req_login_exc:
@@ -133,7 +146,7 @@ class HcmCrawler(SeleniumWebScrapper):
                 self.__progress_state(self.State.LOGGED_IN, "Successfully logged in.")
         # We couldnt login, so make an account
         else:
-            self.__progress_state(self.State.CREATING_ACCOUNT, f"{login_exc} - Could not login, trying to create an account")
+            self.__progress_state(self.State.CREATING_ACCOUNT, f"Could not login, trying to create an account")
 
     def _handle_creating_account(self):
         # attempt to create an account
@@ -167,7 +180,7 @@ class HcmCrawler(SeleniumWebScrapper):
 
             # we still could not on our final login, so stop trying to apply
             if not final_attempt_bool:
-                self.__progress_state(self.State.ERROR, f"{final_login_exc} - Thought we successfully created an account, but failed to login after, ending application attempt!")
+                self.__progress_state(self.State.ERROR, f"Thought we successfully created an account, but failed to login after, ending application attempt!")
             else:
                 self.__progress_state(self.State.LOGGED_IN, "Successfully logged in.")
         else:
@@ -182,7 +195,7 @@ class HcmCrawler(SeleniumWebScrapper):
             return
 
         # if there are elements that we need to fill out, move to filling out application
-        if len(self.app_elements_to_fill) > 0:
+        if self.app_elements_to_fill and len(self.app_elements_to_fill) > 0:
             self.__progress_state(self.State.FILLING_APPLICATION, "Attempting to fill out the application")
         # we have no more elements to fill, attempt to submit and move to a submitted state
         else:
@@ -211,6 +224,15 @@ class HcmCrawler(SeleniumWebScrapper):
 
     def _handle_error(self):
         self._log_application_progression()
+
+    @abstractmethod
+    def _progress_app_to_start(self):
+        '''
+        protected method  that attempts to progress the webpage to the application by clicking buttons like "apply now"
+        or "apply here" etc. as well as handle any other options that would generally be required before filling out the app or logging in
+        :except if there is any issue with progressing the app to a "starting point"
+        '''
+        pass
 
     @abstractmethod
     def _requires_login(self):
@@ -285,4 +307,4 @@ class HcmCrawler(SeleniumWebScrapper):
         # Save cookies to a file
         with open(applications_file, "a") as file:
             for log in self.application_logs:
-                file.write(log)
+                file.write(log + "\n")

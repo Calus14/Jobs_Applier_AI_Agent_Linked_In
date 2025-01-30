@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import yaml
 
-from src.logging import logger
+from local_config import LocalLogging
 
 
 @dataclass
@@ -64,115 +64,116 @@ class JobApplicationProfile:
     salary_expectations: SalaryExpectations
 
     def __init__(self, yaml_str: str):
-        logger.debug("Initializing JobApplicationProfile with provided YAML string")
+        self.logger = LocalLogging.get_local_logger(__name__)
+        self.logger.debug("Initializing JobApplicationProfile with provided YAML string")
         try:
             data = yaml.safe_load(yaml_str)
-            logger.debug(f"YAML data successfully parsed: {data}")
+            self.logger.debug(f"YAML data successfully parsed: {data}")
         except yaml.YAMLError as e:
-            logger.error(f"Error parsing YAML file: {e}")
+            self.logger.error(f"Error parsing YAML file: {e}")
             raise ValueError("Error parsing YAML file.") from e
         except Exception as e:
-            logger.error(f"Unexpected error occurred while parsing the YAML file: {e}")
+            self.logger.error(f"Unexpected error occurred while parsing the YAML file: {e}")
             raise RuntimeError("An unexpected error occurred while parsing the YAML file.") from e
 
         if not isinstance(data, dict):
-            logger.error(f"YAML data must be a dictionary, received: {type(data)}")
+            self.logger.error(f"YAML data must be a dictionary, received: {type(data)}")
             raise TypeError("YAML data must be a dictionary.")
 
         # Process self_identification
         try:
-            logger.debug("Processing self_identification")
+            self.logger.debug("Processing self_identification")
             self.self_identification = SelfIdentification(**data['self_identification'])
-            logger.debug(f"self_identification processed: {self.self_identification}")
+            self.logger.debug(f"self_identification processed: {self.self_identification}")
         except KeyError as e:
-            logger.error(f"Required field {e} is missing in self_identification data.")
+            self.logger.error(f"Required field {e} is missing in self_identification data.")
             raise KeyError(f"Required field {e} is missing in self_identification data.") from e
         except TypeError as e:
-            logger.error(f"Error in self_identification data: {e}")
+            self.logger.error(f"Error in self_identification data: {e}")
             raise TypeError(f"Error in self_identification data: {e}") from e
         except AttributeError as e:
-            logger.error(f"Attribute error in self_identification processing: {e}")
+            self.logger.error(f"Attribute error in self_identification processing: {e}")
             raise AttributeError("Attribute error in self_identification processing.") from e
         except Exception as e:
-            logger.error(f"An unexpected error occurred while processing self_identification: {e}")
+            self.logger.error(f"An unexpected error occurred while processing self_identification: {e}")
             raise RuntimeError("An unexpected error occurred while processing self_identification.") from e
 
         # Process legal_authorization
         try:
-            logger.debug("Processing legal_authorization")
+            self.logger.debug("Processing legal_authorization")
             self.legal_authorization = LegalAuthorization(**data['legal_authorization'])
-            logger.debug(f"legal_authorization processed: {self.legal_authorization}")
+            self.logger.debug(f"legal_authorization processed: {self.legal_authorization}")
         except KeyError as e:
-            logger.error(f"Required field {e} is missing in legal_authorization data.")
+            self.logger.error(f"Required field {e} is missing in legal_authorization data.")
             raise KeyError(f"Required field {e} is missing in legal_authorization data.") from e
         except TypeError as e:
-            logger.error(f"Error in legal_authorization data: {e}")
+            self.logger.error(f"Error in legal_authorization data: {e}")
             raise TypeError(f"Error in legal_authorization data: {e}") from e
         except AttributeError as e:
-            logger.error(f"Attribute error in legal_authorization processing: {e}")
+            self.logger.error(f"Attribute error in legal_authorization processing: {e}")
             raise AttributeError("Attribute error in legal_authorization processing.") from e
         except Exception as e:
-            logger.error(f"An unexpected error occurred while processing legal_authorization: {e}")
+            self.logger.error(f"An unexpected error occurred while processing legal_authorization: {e}")
             raise RuntimeError("An unexpected error occurred while processing legal_authorization.") from e
 
         # Process work_preferences
         try:
-            logger.debug("Processing work_preferences")
+            self.logger.debug("Processing work_preferences")
             self.work_preferences = WorkPreferences(**data['work_preferences'])
-            logger.debug(f"Work_preferences processed: {self.work_preferences}")
+            self.logger.debug(f"Work_preferences processed: {self.work_preferences}")
         except KeyError as e:
-            logger.error(f"Required field {e} is missing in work_preferences data.")
+            self.logger.error(f"Required field {e} is missing in work_preferences data.")
             raise KeyError(f"Required field {e} is missing in work_preferences data.") from e
         except TypeError as e:
-            logger.error(f"Error in work_preferences data: {e}")
+            self.logger.error(f"Error in work_preferences data: {e}")
             raise TypeError(f"Error in work_preferences data: {e}") from e
         except AttributeError as e:
-            logger.error(f"Attribute error in work_preferences processing: {e}")
+            self.logger.error(f"Attribute error in work_preferences processing: {e}")
             raise AttributeError("Attribute error in work_preferences processing.") from e
         except Exception as e:
-            logger.error(f"An unexpected error occurred while processing work_preferences: {e}")
+            self.logger.error(f"An unexpected error occurred while processing work_preferences: {e}")
             raise RuntimeError("An unexpected error occurred while processing work_preferences.") from e
 
         # Process availability
         try:
-            logger.debug("Processing availability")
+            self.logger.debug("Processing availability")
             self.availability = Availability(**data['availability'])
-            logger.debug(f"Availability processed: {self.availability}")
+            self.logger.debug(f"Availability processed: {self.availability}")
         except KeyError as e:
-            logger.error(f"Required field {e} is missing in availability data.")
+            self.logger.error(f"Required field {e} is missing in availability data.")
             raise KeyError(f"Required field {e} is missing in availability data.") from e
         except TypeError as e:
-            logger.error(f"Error in availability data: {e}")
+            self.logger.error(f"Error in availability data: {e}")
             raise TypeError(f"Error in availability data: {e}") from e
         except AttributeError as e:
-            logger.error(f"Attribute error in availability processing: {e}")
+            self.logger.error(f"Attribute error in availability processing: {e}")
             raise AttributeError("Attribute error in availability processing.") from e
         except Exception as e:
-            logger.error(f"An unexpected error occurred while processing availability: {e}")
+            self.logger.error(f"An unexpected error occurred while processing availability: {e}")
             raise RuntimeError("An unexpected error occurred while processing availability.") from e
 
         # Process salary_expectations
         try:
-            logger.debug("Processing salary_expectations")
+            self.logger.debug("Processing salary_expectations")
             self.salary_expectations = SalaryExpectations(**data['salary_expectations'])
-            logger.debug(f"salary_expectations processed: {self.salary_expectations}")
+            self.logger.debug(f"salary_expectations processed: {self.salary_expectations}")
         except KeyError as e:
-            logger.error(f"Required field {e} is missing in salary_expectations data.")
+            self.logger.error(f"Required field {e} is missing in salary_expectations data.")
             raise KeyError(f"Required field {e} is missing in salary_expectations data.") from e
         except TypeError as e:
-            logger.error(f"Error in salary_expectations data: {e}")
+            self.logger.error(f"Error in salary_expectations data: {e}")
             raise TypeError(f"Error in salary_expectations data: {e}") from e
         except AttributeError as e:
-            logger.error(f"Attribute error in salary_expectations processing: {e}")
+            self.logger.error(f"Attribute error in salary_expectations processing: {e}")
             raise AttributeError("Attribute error in salary_expectations processing.") from e
         except Exception as e:
-            logger.error(f"An unexpected error occurred while processing salary_expectations: {e}")
+            self.logger.error(f"An unexpected error occurred while processing salary_expectations: {e}")
             raise RuntimeError("An unexpected error occurred while processing salary_expectations.") from e
 
-        logger.debug("JobApplicationProfile initialization completed successfully.")
+        self.logger.debug("JobApplicationProfile initialization completed successfully.")
 
     def __str__(self):
-        logger.debug("Generating string representation of JobApplicationProfile")
+        self.logger.debug("Generating string representation of JobApplicationProfile")
 
         def format_dataclass(obj):
             return "\n".join(f"{field.name}: {getattr(obj, field.name)}" for field in obj.__dataclass_fields__.values())
@@ -182,5 +183,5 @@ class JobApplicationProfile:
                          f"Work Preferences:\n{format_dataclass(self.work_preferences)}\n\n"
                          f"Availability: {self.availability.notice_period}\n\n"
                          f"Salary Expectations: {self.salary_expectations.salary_range_usd}\n\n")
-        logger.debug(f"String representation generated: {formatted_str}")
+        self.logger.debug(f"String representation generated: {formatted_str}")
         return formatted_str

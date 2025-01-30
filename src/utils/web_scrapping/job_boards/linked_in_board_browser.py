@@ -6,8 +6,7 @@ from typing import Tuple
 
 from selenium.webdriver.remote.webdriver import BaseWebDriver
 
-from local_config import global_config
-import logging
+from local_config import global_config, LocalLogging
 from src.data_objects.application_job_configs import ApplicationJobConfigs
 from src.data_objects.job_application_profile import JobApplicationProfile
 from src.data_objects.job_posting import JobPosting
@@ -56,7 +55,7 @@ class LinkedInBoardBrowser(JobBoardBrowser):
     linkedin_page_incrementor_string = "&start="
     linkedin_jobs_per_page = 25
 
-    logger = logging.getLogger("linked_in_board_browser")
+    logger = LocalLogging.get_local_logger("linked_in_board_browser")
     #State variable that allows us to not try and extract jobs if we have not searched them.
 
     def __init__(self, driver: BaseWebDriver):
@@ -213,7 +212,6 @@ class LinkedInBoardBrowser(JobBoardBrowser):
         job_details_html_element = self.driver.find_element(By.XPATH, self.job_details_xpath)
         job_details_html_string = job_details_html_element.get_attribute("innerHTML")
 
-        # TODO add in the AI call for chance to match this job
         chance_of_interview, chance_of_hire = self._evaluate_chance_of_landing_job_(ai_model, job_details_html_string, resume)
 
         # find the apply button, click it, make sure it opens the application to a 3rd party website, then grab that tabs url and create the posting

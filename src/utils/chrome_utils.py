@@ -5,10 +5,8 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager  # Import webdriver_manager
 import urllib
-from src.logging import logger
 
 def chrome_browser_options():
-    logger.debug("Setting Chrome browser options")
     options = Options()
     options.add_argument("--start-maximized")
     options.add_argument("--no-sandbox")
@@ -31,7 +29,6 @@ def chrome_browser_options():
     options.add_argument("--incognito")
     options.add_argument("--allow-file-access-from-files")
     options.add_argument("--disable-web-security")
-    logger.debug("Using Chrome in incognito mode")
     
     return options
 
@@ -40,10 +37,8 @@ def init_browser() -> webdriver.Chrome:
         options = chrome_browser_options()
         # Use webdriver_manager to handle ChromeDriver
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-        logger.debug("Chrome browser initialized successfully.")
         return driver
     except Exception as e:
-        logger.error(f"Failed to initialize browser: {str(e)}")
         raise RuntimeError(f"Failed to initialize browser: {str(e)}")
 
 
@@ -89,5 +84,4 @@ def HTML_to_PDF(html_content, driver):
         })
         return pdf_base64['data']
     except Exception as e:
-        logger.error(f"Si è verificata un'eccezione WebDriver: {e}")
         raise RuntimeError(f"Si è verificata un'eccezione WebDriver: {e}")

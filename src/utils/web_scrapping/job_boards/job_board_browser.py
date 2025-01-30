@@ -22,7 +22,7 @@ class JobBoardBrowser(SeleniumWebScrapper):
 
     @abstractmethod
     def __init__(self, driver: BaseWebDriver):
-        super.__init__(driver)
+        super().__init__(driver)
 
     @abstractmethod
     def do_search(self, search_terms: str, preferences: {}):
