@@ -3,7 +3,7 @@ from abc import abstractmethod, ABC
 
 from selenium.webdriver.remote.webdriver import BaseWebDriver
 
-from local_config import global_config
+from src.config.local_config import global_config
 
 
 class SeleniumWebScrapper(ABC):

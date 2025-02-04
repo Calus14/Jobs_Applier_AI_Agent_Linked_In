@@ -8,7 +8,8 @@ from selenium.webdriver.remote.webdriver import BaseWebDriver
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 
-from local_config import global_config, LocalLogging
+from src.config.local_config import global_config
+from src.config.local_logging import LocalLogging
 
 
 class WebDriverFactory():

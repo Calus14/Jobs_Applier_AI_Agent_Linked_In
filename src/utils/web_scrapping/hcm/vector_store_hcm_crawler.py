@@ -6,7 +6,8 @@ import numpy as np
 from bs4 import PageElement
 from selenium.webdriver.remote.webelement import WebElement
 
-from local_config import global_config, LocalLogging
+from src.config.local_config import global_config
+from src.config.local_logging import LocalLogging
 from src.data_objects.job_posting import JobPosting
 from src.utils.llm_utils.open_ai_action_wrapper import OpenAiActionWrapper
 from src.utils.math_utils import MathUtils, RunningAverage
@@ -36,7 +37,7 @@ class VectorStoreHcmCrawler(HcmCrawler):
     certainty_clearance = 0.5 # number that the dot product projection has to be over to be considered
     prompt_average_top_score_map: Dict[str, RunningAverage] = {} #static map that will keep a running mark on all prompts and what the average top score is.
 
-    prompt_module = load_module(global_config.PROMPTS_DIRECTORY / f"hcm_crawler_prompts.py", "hcm_crawler_prompts")
+    prompt_module = load_module(global_config.PROMPTS_DIRECTORY / "hcm_crawler_prompts.py", "hcm_crawler_prompts")
 
     ''' 
     TODO create Query class that uses "persistence" which for now will be just files that allows us to start with an initial
@@ -45,13 +46,13 @@ class VectorStoreHcmCrawler(HcmCrawler):
     have 1 test page setting all the weights.
     '''
 
-    def __init__(self, driver, posting: JobPosting):
-        super().__init__(driver, posting)
+    def __init__(self, driver, posting: JobPosting, ai_model):
+        super().__init__(driver, posting, ai_model)
         self.element_to_vector_map = {}
         self.logger = LocalLogging.get_local_logger(__name__)
-        if type(global_config.AI_MODEL) is not OpenAiActionWrapper:
+        if type(self.ai_model) is not OpenAiActionWrapper:
             raise Exception("UNABLE TO USE VECTOR STORE HCM CRAWLER! Need an OpenAiActionWrapper to use the OpenAiEmbeddings"
-                            + " for this Crawler to work! Configured AI Model is - " + str(type(global_config.AI_MODEL)))
+                            + " for this Crawler to work! Configured AI Model is - " + str(type(self.ai_model)))
 
     @staticmethod
     def dump_average_prompt_scores():
@@ -74,9 +75,9 @@ class VectorStoreHcmCrawler(HcmCrawler):
         Selenium Element so that we can query for specific elements/actions and get the selenium element, act on it,
         and progress the state
         '''
-        if type(global_config.AI_MODEL) is not OpenAiActionWrapper:
+        if type(self.ai_model) is not OpenAiActionWrapper:
             raise Exception("UNABLE TO USE VECTOR STORE HCM CRAWLER! Need an OpenAiActionWrapper to use the OpenAiEmbeddings"
-                            + " for this Crawler to work! Configured AI Model is - " + str(type(global_config.AI_MODEL)))
+                            + " for this Crawler to work! Configured AI Model is - " + str(type(self.ai_model)))
         self.element_to_vector_map.clear()
         start_milliseconds = int(round(time.time() * 1000))
 
@@ -85,7 +86,7 @@ class VectorStoreHcmCrawler(HcmCrawler):
         self.logger.info(f"Took {html_break_time} milliseconds to break page into critical html strings.")
 
         crit_strings = list(critical_strings_selenium_elements_map.keys())
-        embedded_vectors = global_config.AI_MODEL.embed_documents(crit_strings)
+        embedded_vectors = self.ai_model.embed_documents(crit_strings)
 
         for selenium_element, embedded_vector in zip(critical_strings_selenium_elements_map.items(), embedded_vectors):
             self.element_to_vector_map[selenium_element] = embedded_vector
@@ -143,19 +144,19 @@ class VectorStoreHcmCrawler(HcmCrawler):
         :param top_matches: how many matches to show,
         :return: dictionary of selenium element -> dotProductProjection (score of how closely it matches)
         '''
-        if type(global_config.AI_MODEL) is not OpenAiActionWrapper:
+        if type(self.ai_model) is not OpenAiActionWrapper:
             raise Exception("UNABLE TO USE VECTOR STORE HCM CRAWLER! Need an OpenAiActionWrapper to use the OpenAiEmbeddings"
-                            + " for this Crawler to work! Configured AI Model is - " + str(type(global_config.AI_MODEL)))
+                            + " for this Crawler to work! Configured AI Model is - " + str(type(self.ai_model)))
         if not self.element_to_vector_map or len(self.element_to_vector_map) == 0:
             raise Exception("Cannot find most matching elements to prompt because the element_to_vector_map is empty!")
 
         # If we are passed a batch, we need to do an aggregate of each prompts similarity to the element
         if isinstance(query, List):
-            query_vectors = global_config.AI_MODEL.embed_documents(query)
+            query_vectors = self.ai_model.embed_documents(query)
             rep_prompt_string = query[0]
             element_match_list = self.__get_highest_match_for_query_batch(query_vectors)
         else: # its just one query so we can do a more simple flow.
-            query_vector = global_config.AI_MODEL.embed_string(query)
+            query_vector = self.ai_model.embed_string(query)
             rep_prompt_string = query
             element_match_list = [ElementMatchPair(v[0], v[1], MathUtils.cosine_similarity(query_vector, v[1]))
                                   for v in self.element_to_vector_map.items()]

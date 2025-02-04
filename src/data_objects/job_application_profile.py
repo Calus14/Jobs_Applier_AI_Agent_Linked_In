@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import yaml
 
-from local_config import LocalLogging
+from src.config.local_logging import LocalLogging
 
 
 @dataclass

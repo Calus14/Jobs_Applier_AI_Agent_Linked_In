@@ -6,7 +6,8 @@ from typing import Tuple
 
 from selenium.webdriver.remote.webdriver import BaseWebDriver
 
-from local_config import global_config, LocalLogging
+from src.config.local_config import global_config
+from src.config.local_logging import LocalLogging
 from src.data_objects.application_job_configs import ApplicationJobConfigs
 from src.data_objects.job_application_profile import JobApplicationProfile
 from src.data_objects.job_posting import JobPosting

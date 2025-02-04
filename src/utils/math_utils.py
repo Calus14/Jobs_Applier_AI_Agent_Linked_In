@@ -3,7 +3,7 @@ import json
 import numpy as np
 from numpy import dot
 from numpy.linalg import norm
-from local_config import LocalLogging
+from src.config.local_logging import LocalLogging
 
 logger = LocalLogging.get_local_logger("Math_Utils")
 class MathUtils:

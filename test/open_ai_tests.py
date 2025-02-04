@@ -3,12 +3,12 @@ import logging
 
 import os
 from pathlib import Path
-from local_config import global_config
+from src.config.local_config import global_config
 from src.utils.config_validator import ConfigValidator, ConfigError
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_openai import ChatOpenAI
-from local_config import global_config
+from src.config.local_config import global_config
 from src.utils.llm_utils.open_ai_action_wrapper import OpenAiActionWrapper
 
 test_prompt = "I am testing that i can communicate with you, please respond with \"Hello World\""

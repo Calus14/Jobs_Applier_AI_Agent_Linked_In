@@ -7,7 +7,7 @@ from selenium.webdriver.remote.webdriver import BaseWebDriver
 from bs4 import BeautifulSoup, Tag
 from selenium.webdriver.remote.webelement import WebElement
 
-from local_config import LocalLogging
+from src.config.local_logging import LocalLogging
 
 
 class SeleniumUtils:

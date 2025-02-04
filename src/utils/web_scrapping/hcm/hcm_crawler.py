@@ -5,7 +5,8 @@ from typing import List
 
 from selenium.webdriver.remote.webelement import WebElement
 
-from local_config import global_config, LocalLogging
+from src.config.local_config import global_config
+from src.config.local_logging import LocalLogging
 from src.data_objects.job_posting import JobPosting
 from src.utils.web_scrapping.selenium_utils import SeleniumUtils
 from src.utils.web_scrapping.selenium_web_scrapper import SeleniumWebScrapper
@@ -30,8 +31,9 @@ class HcmCrawler(SeleniumWebScrapper):
         SUBMITTED_APPLICATION = 7
         ERROR = 8
 
-    def __init__(self, driver, posting: JobPosting):
+    def __init__(self, driver, posting: JobPosting, ai_model):
         super().__init__(driver)
+        self.ai_model = ai_model
         self.driver = driver
 
         self.logger = LocalLogging.get_local_logger(__name__)

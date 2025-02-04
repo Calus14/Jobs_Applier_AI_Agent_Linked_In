@@ -4,7 +4,7 @@ import logging
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_openai import ChatOpenAI
-from local_config import global_config
+from src.config.local_config import global_config
 from src.utils.llm_utils.open_ai_action_wrapper import OpenAiActionWrapper
 
 class LinkedInBoardBrowserTest(unittest.TestCase):

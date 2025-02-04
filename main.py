@@ -1,26 +1,25 @@
 import argparse
-import logging
 import os
 import traceback
-import sys
-from pathlib import Path
 
-import yaml
+from pathlib import Path
+from typing import List
+
 from langchain_openai import ChatOpenAI
-from local_config import global_config, LocalLogging
+from src.config.local_config import global_config
+from src.config.local_logging import LocalLogging
 from src.data_objects.job_posting import JobPosting
 from src.data_objects.resume import Resume
+
+from src.processes.apply_for_jobs import ApplyForJobs
+from src.processes.build_embedded_vector_manually import BuildEmbeddedVectorManually
+from src.processes.find_jobs_for_user import FindJobsForUser
 from src.utils.config_validator import ConfigValidator, ConfigError
 from src.utils.llm_utils.llm_logger import LLMLogger
 from src.utils.llm_utils.open_ai_action_wrapper import OpenAiActionWrapper
 from src.utils.web_scrapping.hcm.vector_store_hcm_crawler import VectorStoreHcmCrawler
 from src.utils.web_scrapping.job_boards.linked_in_board_browser import LinkedInBoardBrowser
 from src.utils.web_scrapping.web_driver_factory import WebDriverFactory
-
-
-from langchain_community.embeddings import OpenAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.schema import Document
 
 main_logger = LocalLogging.get_local_logger("main_script.py")
 
@@ -40,14 +39,12 @@ def load_config():
         global_config.LINKEDIN_PASSWORD = secrets["linkedin_password"]
         global_config.DEFAULT_EMAIL = secrets["default_account_email"]
         global_config.DEFAULT_PASSWORD = secrets["default_account_password"]
+        global_config.WORK_PREFS = config
 
         with open(plain_text_resume_file, "r", encoding="utf-8") as file:
             plain_text_resume = file.read()
             global_config.RESUME = Resume(plain_text_resume)
 
-        # Prepare parameters
-        config["uploads"] = ConfigValidator.get_uploads(plain_text_resume_file)
-        config["outputFileDirectory"] = output_folder
         return config
 
     except ConfigError as ce:
@@ -76,11 +73,6 @@ def main():
 
     config = load_config()
 
-    """Main entry point for the Job Application Bot."""
-    if not config["positions"] or len(config["positions"]) == 0:
-        main_logger.error("Must provide different positions you would like us to attempt to apply jobs for you")
-        return
-
     # In the future set the model based on a config that is passed in.
     global_config.AI_MODEL = OpenAiActionWrapper(
         ChatOpenAI(
@@ -89,25 +81,61 @@ def main():
         enable_logging=True
     )
 
-    test_posting = JobPosting(html_string="",
-                              url_link= "https://jobs.lever.co/kochava/1b4a3c3d-e05b-494f-ac40-9f5aefbe0733",
-                              interview_chance=100, hired_chance=100)
-    test_crawler = VectorStoreHcmCrawler(driver=WebDriverFactory().get_chrome_web_driver(), posting=test_posting)
-    test_crawler.do_application_flow()
+    data_folder = Path("data_folder")
+    secrets_file, work_prefs, plain_text_resume_file, output_folder = ConfigValidator.validate_data_folder(data_folder)
+    #
+    # most_likely_postings = temp_load_job_postings()
+    # list_of_urls = [x.url_link for x in most_likely_postings]
+    # manual_vector_builder = BuildEmbeddedVectorManually(WebDriverFactory().get_chrome_web_driver(),
+    #                                                     global_config.AI_MODEL,
+    #                                                     list_of_urls,
+    #                                                     "test_vector")
+    # manual_vector_builder.collect_average_vector_over_urls()
 
-    #linked_in_board_browser = LinkedInBoardBrowser(driver=WebDriverFactory().get_chrome_web_driver())
 
-    # try:
-    #     # Attempt to go to linkedin and search
-    #     linked_in_board_browser.do_search(config["positions"], config)
-    #     job_postings = linked_in_board_browser.extract_and_evaluate_jobs(global_config.RESUME, global_config.AI_MODEL, config["max_jobs_apply_to"])
-    #     most_likely_postings = sorted(job_postings, key=lambda posting: posting.interview_chance, reverse=True)
-    #     for posting in most_likely_postings:
-    #         main_logger.info(f"Found a job posting with url {posting.url_link} and we have a {posting.interview_chance} of getting an interview and {posting.hired_chance} of getting hired")
-    # finally:
-    #     linked_in_board_browser.close_browser()
+    try:
+        linked_in_board_browser = LinkedInBoardBrowser(driver=WebDriverFactory().get_chrome_web_driver())
+        find_job_process = FindJobsForUser(linked_in_board_browser, global_config.AI_MODEL)
+        # find_job_process.configure_for_user(secrets_file, plain_text_resume_file, work_prefs)
+        # job_postings = find_job_process.find_jobs_for_user()
 
-    main_logger.info(f"Finished running the applicaiton and spent a total of {LLMLogger.total_run_cost} credits")
+        # temp_save_job_postings(job_postings)
+        most_likely_postings = temp_load_job_postings()
+        apply_for_jobs = ApplyForJobs(WebDriverFactory().get_chrome_web_driver(),
+                                      VectorStoreHcmCrawler,
+                                      most_likely_postings,
+                                      find_job_process.local_config,
+                                      find_job_process.ai_model)
+        apply_for_jobs.validate_should_apply_for_jobs()
+        apply_for_jobs.apply_for_jobs()
+        apply_for_jobs.save_jobs_applied_to()
+        apply_for_jobs.save_jobs_failed_applied_to()
+
+    except Exception as e:
+        main_logger.error(e)
+    finally:
+        VectorStoreHcmCrawler.dump_average_prompt_scores()
+
+def tempt_save_job_postings(jobs_postings):
+    postings_file = global_config.LOG_OUTPUT_FILE_PATH / "job_postings.json"
+    with open(postings_file, "a") as file:
+        file.write("\n\n----------------------------------------\n\n")
+        for posting in jobs_postings:
+            file.write(posting.url_link + "\n")
+
+def temp_load_job_postings() -> List[JobPosting]:
+    postings = []
+    postings_file = global_config.LOG_OUTPUT_FILE_PATH / "job_postings.json"
+    with open(postings_file, "r") as file:
+        for line in file:
+            job_url = file.readline()
+            postings.append(JobPosting(html_string=line,
+                                        url_link= job_url.strip(),
+                                        interview_chance=100, hired_chance=100))
+    return postings
+
+
+main_logger.info(f"Finished running the applicaiton and spent a total of {LLMLogger.total_run_cost} credits")
 
 
 if __name__ == "__main__":

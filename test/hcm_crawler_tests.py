@@ -3,7 +3,7 @@ import logging
 import os
 from pathlib import Path
 from src.utils.config_validator import ConfigValidator, ConfigError
-from local_config import global_config
+from src.config.local_config import global_config
 
 
 class HcmCrawlerTests(unittest.TestCase):
