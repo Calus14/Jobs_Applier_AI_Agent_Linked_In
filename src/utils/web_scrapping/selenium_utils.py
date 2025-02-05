@@ -57,7 +57,7 @@ class SeleniumUtils:
         allowing us
 
         :param driver: Selenium WebDriver instance.
-        :param element_cache: Cache that can be passed in
+        :param context_level: how many levels above and below the element to return in the critical string
         :return map of the html critical string -> the selenium element
         """
 
@@ -114,6 +114,64 @@ class SeleniumUtils:
                 context_to_selenium_element[context_string] = selenium_elements[index]
 
         return context_to_selenium_element
+
+    @staticmethod
+    def get_selenium_elements_as_critical_html_strings(driver: BaseWebDriver, elements: List[WebElement], context_level=1) -> Dict[str, WebElement]:
+        """
+        Gets a drivers contextual html for a list of web elements that must be within the base driver.
+
+        :param driver: Selenium WebDriver instance
+        :param elements: WebElements that exist in the page for which we will extract their critical html
+        :param context_level: how many levels above and below the element to return in the critical string
+        :return map of the html critical string -> the selenium element
+        """
+
+        page_html = driver.page_source
+        soup = BeautifulSoup(page_html, 'html.parser')
+        # Remove all the heavy strings that likely load with javascript
+        for tag in soup.find_all(['style', 'meta', 'script']):
+            tag.decompose()
+
+        elements_to_tags_map = {element : SeleniumUtils.map_selenium_element_to_bs4_tag(element, soup)
+                                for element in elements}
+        # remove all null Tags
+        elements_to_tags_map = {e : t for e, t in elements_to_tags_map.items() if t != None}
+
+        if len(elements_to_tags_map.items()) != len(elements):
+            SeleniumUtils.logger.warn("Unable to get bs4 Tag object for all elements provided in mapping method. Proceding with what was found")
+
+        # Map the context string we build up with beautiful soup, to its XPath string, so that we can retrieve all
+        # selenium elements in one client interaction
+        context_to_element_map = {}
+        for element, tag in elements_to_tags_map.items():
+            copy_tag = copy.copy(tag)
+
+            # get a vertical parent context
+            parent = copy_tag.parent
+            parent_context = SeleniumUtils.get_parent_tags_with_cleared_children(copy_tag, context_level)
+
+            # get the vertical child context
+            SeleniumUtils.recursive_soup_child_clearer(copy_tag, context_level)
+
+            # If there was a parent wrap the current tag
+            if parent_context and parent:
+                parent.append(copy_tag)
+
+            # get the top level tag so that we can print the whole context
+            top_level_tag = copy_tag
+            while top_level_tag.parent is not None:
+                top_level_tag = top_level_tag.parent
+
+            # remove all the dead tags so that the vector embedding is better
+            SeleniumUtils.prune_empty_tags(top_level_tag)
+            try:
+                element_context_html = str(top_level_tag)
+                # put the whole html as the key incontext_to_xpath_map = {dict: 1} {'<div class="main-header page-full-width section-wrapper"><div class="main-header-content page-centered narrow-section page-full-width"><a class="main-header-logo" href="https://jobs.lever.co/finix"></a></div></div>': '/html/body/div[1]/div/div/a'}
+                context_to_element_map[element_context_html] = element
+            except:
+                SeleniumUtils.logger.error("Unable to get element Context html because element had structure broken, likely in prune method")
+
+        return context_to_element_map
 
     @staticmethod
     def recursive_soup_child_clearer(html_obj: Tag, level_to_keep = 0) -> None:
@@ -229,6 +287,30 @@ class SeleniumUtils:
         if tag.get('id'):  # Add ID if it exists
             selector += f'#{tag["id"]}'
         return selector
+
+    @staticmethod
+    def map_selenium_element_to_bs4_tag(element: WebElement, page_soup: Tag) -> Tag:
+        '''
+        Utility method for when we have selected Selenium Web Elements and want the tag object
+        :return tag if the element could be found or None if it was not in the page_soup
+        '''
+        if not element:
+            raise Exception("Cannot find web-element from bs4 soup page object, no element object given!")
+        if not page_soup:
+            raise Exception("Cannot find web-element from bs4 soup page object, no page-soup object given!")
+
+        element_html = element.get_attribute("outerHTML")
+        matching_element = page_soup.find(lambda tag: tag and str(tag) == element_html)
+        if matching_element == None:
+            print(page_soup)
+        return matching_element
+
+    @staticmethod
+    def print_tag_structure(tag, indent=0):
+        print('  ' * indent + tag.name)
+        for child in tag.children:
+            if child.name:  # Skip non-Tag elements (e.g., text)
+                SeleniumUtils.print_tag_structure(child, indent + 1)
 
 
     @staticmethod

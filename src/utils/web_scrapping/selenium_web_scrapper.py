@@ -27,7 +27,7 @@ class SeleniumWebScrapper(ABC):
         '''
         cookies = self.driver.get_cookies()
         board_name = self.snake_case_pattern.sub('_', type(self).__name__).lower()
-        cookies_file = global_config.LOG_OUTPUT_FILE_PATH / f"{board_name}_cookies.json"
+        cookies_file = global_config.LOG_OUTPUT_FILE_PATH / "cookies" / f"{board_name}_cookies.json"
 
         # Save cookies to a file
         with open(cookies_file, "w") as file:

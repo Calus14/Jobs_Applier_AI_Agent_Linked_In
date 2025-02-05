@@ -66,145 +66,9 @@ class VectorStoreHcmCrawler(HcmCrawler):
             file.write("\n\n----------------------------------------\n\n")
             json.dump(VectorStoreHcmCrawler.prompt_average_top_score_map, file, default=lambda o : o.__dict__)
 
-
-    def __break_page_into_vector_store(self):
-        '''
-        Attempts to break the current page down into contextual HTML strings on all "critical" tags that we would expect
-        to be used to fill out and navigate an application. Then uses AI Embeddings to break each contextual string
-        into a vector_store so that we can calculate a cosine similarity. These vector stores are then mapped to their
-        Selenium Element so that we can query for specific elements/actions and get the selenium element, act on it,
-        and progress the state
-        '''
-        if type(self.ai_model) is not OpenAiActionWrapper:
-            raise Exception("UNABLE TO USE VECTOR STORE HCM CRAWLER! Need an OpenAiActionWrapper to use the OpenAiEmbeddings"
-                            + " for this Crawler to work! Configured AI Model is - " + str(type(self.ai_model)))
-        self.element_to_vector_map.clear()
-        start_milliseconds = int(round(time.time() * 1000))
-
-        critical_strings_selenium_elements_map = SeleniumUtils.get_drivers_html_as_critical_html_strings(self.driver, context_level=2)
-        html_break_time = int(round(time.time() * 1000)) - start_milliseconds
-        self.logger.info(f"Took {html_break_time} milliseconds to break page into critical html strings.")
-
-        crit_strings = list(critical_strings_selenium_elements_map.keys())
-        embedded_vectors = self.ai_model.embed_documents(crit_strings)
-
-        for selenium_element, embedded_vector in zip(critical_strings_selenium_elements_map.items(), embedded_vectors):
-            self.element_to_vector_map[selenium_element] = embedded_vector
-
-        total_run_time = int(round(time.time() * 1000)) - start_milliseconds
-        self.logger.info(f"Took {total_run_time} milliseconds to break page into vector store.")
-
-    def __get_highest_match_for_query_batch(self, query_vectors) -> List[ElementMatchPair]:
-        '''
-        Utility method that takes a batch of queries as embedded vectors, and then does linear algebra to fine the
-        cosine similarity of each critical element to the query. Then finally, grabs the highest score for each element
-
-        :param query_vectors: list of queries as embedded vectors
-        :return: List of ElementMatchPairs representing each element and its match chance
-        '''
-        # 2d array where each row is the element as an embedded vector
-        element_list = list(self.element_to_vector_map.keys())
-        element_vector_list = list(self.element_to_vector_map.values())
-        elements_vector_batch = np.array(element_vector_list)
-
-        # 2d array where each row is a query as a vector
-        resume_keys_vector_batch = np.array(query_vectors)
-
-        # NOTE: Does not require to be normalized as embeddings the vector before returning
-        # multiply by the transpose to do a dot product per each element to query
-        similarity_matrix = np.dot(elements_vector_batch, resume_keys_vector_batch.T)
-
-        # Now each row will have been the element, and each value in the elements chance can be averaged to see how likely that element is ultimately
-        element_match_list = []
-        for index in range(len(similarity_matrix)):
-            # Get the list of dot products of this element vector embedding with each query embedding
-            element_chances_list = similarity_matrix[index]
-            # get objects to create the elementMatchPair
-            element = element_list[index]
-            element_vector = element_vector_list[index]
-
-            # create a running average
-            element_max = 0.0
-            for query_chance in element_chances_list:
-                if query_chance > element_max:
-                    element_max = query_chance
-
-            # add it to our element_match_kist
-            element_match_list.append(ElementMatchPair(element, element_vector, element_max))
-
-        return element_match_list
-
-
-    def __get_most_matching_elements_to_prompt(self, query: str | List[str], top_matches = 1) -> Dict[PageElement, float]:
-        '''
-        MAGIC HAPPENS HERE
-        Takes a prompt that is direct and ambiguous and attempts to find an elements that match the most to what its describing.
-        This is done by using the dot product projection of all critical string vector embeddings and the prompt's vector embedding.
-        :param query: String or list of strings to search the critical elements for that most closely matches it
-        :param top_matches: how many matches to show,
-        :return: dictionary of selenium element -> dotProductProjection (score of how closely it matches)
-        '''
-        if type(self.ai_model) is not OpenAiActionWrapper:
-            raise Exception("UNABLE TO USE VECTOR STORE HCM CRAWLER! Need an OpenAiActionWrapper to use the OpenAiEmbeddings"
-                            + " for this Crawler to work! Configured AI Model is - " + str(type(self.ai_model)))
-        if not self.element_to_vector_map or len(self.element_to_vector_map) == 0:
-            raise Exception("Cannot find most matching elements to prompt because the element_to_vector_map is empty!")
-
-        # If we are passed a batch, we need to do an aggregate of each prompts similarity to the element
-        if isinstance(query, List):
-            query_vectors = self.ai_model.embed_documents(query)
-            rep_prompt_string = query[0]
-            element_match_list = self.__get_highest_match_for_query_batch(query_vectors)
-        else: # its just one query so we can do a more simple flow.
-            query_vector = self.ai_model.embed_string(query)
-            rep_prompt_string = query
-            element_match_list = [ElementMatchPair(v[0], v[1], MathUtils.cosine_similarity(query_vector, v[1]))
-                                  for v in self.element_to_vector_map.items()]
-        # Now get the top similarity scores
-        top_element_matches = sorted(element_match_list, key=lambda x: x.match_confidence, reverse=True)[:top_matches]
-
-        # Add to the running average so we can better tune queries and limits
-        if rep_prompt_string not in VectorStoreHcmCrawler.prompt_average_top_score_map:
-            VectorStoreHcmCrawler.prompt_average_top_score_map[rep_prompt_string] = RunningAverage()
-        VectorStoreHcmCrawler.prompt_average_top_score_map[rep_prompt_string].update(top_element_matches[0].match_confidence)
-
-        return top_element_matches
-
-
-    def __get_top_match_for_query(self, query: str | List[str]) -> ElementMatchPair:
-        '''
-        Utility method that executes a query and gets only the top one, then logs if it doesnt meet the certainty level
-        and finally returns the ElementMatchPair or None
-        :param query: query to try and find a match for
-        :return: top match as an ElementMatchPair or None
-        '''
-        # get the first element of the most matching elements
-        element_top_match_list = self.__get_most_matching_elements_to_prompt(query)
-        if len(element_top_match_list) == 0:
-            raise Exception("Could not find a single element in the critical tags on this webpage")
-        element_top_match = element_top_match_list[0]
-
-        # if it falls below the threshold then log it and return None
-        if element_top_match.match_confidence < VectorStoreHcmCrawler.certainty_clearance:
-            self.logger.info(f"Did not find any element for the query \"{query}\", highest score was {element_top_match.match_confidence}")
-            return None
-        return element_top_match
-
-
-    def __get_all_matches_for_query(self, query: str | List[str]) -> List[ElementMatchPair]:
-        '''
-        Utility method that executes a query and gets all matches that are above our match_confidence.
-
-        :param query: query to try and find a match for
-        :return: All matches for this query, that pass a threshold
-        '''
-        # get the first element of the most matching elements
-        element_match_pairs = self.__get_most_matching_elements_to_prompt(query, len(self.element_to_vector_map))
-
-        # if it falls below the threshold then log it and return None
-        qualified_matches = [em for em in element_match_pairs if em.match_confidence >= VectorStoreHcmCrawler.certainty_clearance]
-        return qualified_matches
-
+    def close_browser(self):
+        ''' We do not need cookies for the hcm websites we are crawling'''
+        pass
 
     def _progress_app_to_start(self):
         '''
@@ -407,3 +271,141 @@ class VectorStoreHcmCrawler(HcmCrawler):
         '''
         print("TODO")
         return 0
+
+    def __break_page_into_vector_store(self):
+        '''
+        Attempts to break the current page down into contextual HTML strings on all "critical" tags that we would expect
+        to be used to fill out and navigate an application. Then uses AI Embeddings to break each contextual string
+        into a vector_store so that we can calculate a cosine similarity. These vector stores are then mapped to their
+        Selenium Element so that we can query for specific elements/actions and get the selenium element, act on it,
+        and progress the state
+        '''
+        if type(self.ai_model) is not OpenAiActionWrapper:
+            raise Exception("UNABLE TO USE VECTOR STORE HCM CRAWLER! Need an OpenAiActionWrapper to use the OpenAiEmbeddings"
+                            + " for this Crawler to work! Configured AI Model is - " + str(type(self.ai_model)))
+        self.element_to_vector_map.clear()
+        start_milliseconds = int(round(time.time() * 1000))
+
+        critical_strings_selenium_elements_map = SeleniumUtils.get_drivers_html_as_critical_html_strings(self.driver, context_level=2)
+        html_break_time = int(round(time.time() * 1000)) - start_milliseconds
+        self.logger.info(f"Took {html_break_time} milliseconds to break page into critical html strings.")
+
+        crit_strings = list(critical_strings_selenium_elements_map.keys())
+        embedded_vectors = self.ai_model.embed_documents(crit_strings)
+
+        for selenium_element, embedded_vector in zip(critical_strings_selenium_elements_map.items(), embedded_vectors):
+            self.element_to_vector_map[selenium_element] = embedded_vector
+
+        total_run_time = int(round(time.time() * 1000)) - start_milliseconds
+        self.logger.info(f"Took {total_run_time} milliseconds to break page into vector store.")
+
+    def __get_highest_match_for_query_batch(self, query_vectors) -> List[ElementMatchPair]:
+        '''
+        Utility method that takes a batch of queries as embedded vectors, and then does linear algebra to fine the
+        cosine similarity of each critical element to the query. Then finally, grabs the highest score for each element
+
+        :param query_vectors: list of queries as embedded vectors
+        :return: List of ElementMatchPairs representing each element and its match chance
+        '''
+        # 2d array where each row is the element as an embedded vector
+        element_list = list(self.element_to_vector_map.keys())
+        element_vector_list = list(self.element_to_vector_map.values())
+        elements_vector_batch = np.array(element_vector_list)
+
+        # 2d array where each row is a query as a vector
+        resume_keys_vector_batch = np.array(query_vectors)
+
+        # NOTE: Does not require to be normalized as embeddings the vector before returning
+        # multiply by the transpose to do a dot product per each element to query
+        similarity_matrix = np.dot(elements_vector_batch, resume_keys_vector_batch.T)
+
+        # Now each row will have been the element, and each value in the elements chance can be averaged to see how likely that element is ultimately
+        element_match_list = []
+        for index in range(len(similarity_matrix)):
+            # Get the list of dot products of this element vector embedding with each query embedding
+            element_chances_list = similarity_matrix[index]
+            # get objects to create the elementMatchPair
+            element = element_list[index]
+            element_vector = element_vector_list[index]
+
+            # create a running average
+            element_max = 0.0
+            for query_chance in element_chances_list:
+                if query_chance > element_max:
+                    element_max = query_chance
+
+            # add it to our element_match_kist
+            element_match_list.append(ElementMatchPair(element, element_vector, element_max))
+
+        return element_match_list
+
+
+    def __get_most_matching_elements_to_prompt(self, query: str | List[str], top_matches = 1) -> Dict[PageElement, float]:
+        '''
+        MAGIC HAPPENS HERE
+        Takes a prompt that is direct and ambiguous and attempts to find an elements that match the most to what its describing.
+        This is done by using the dot product projection of all critical string vector embeddings and the prompt's vector embedding.
+        :param query: String or list of strings to search the critical elements for that most closely matches it
+        :param top_matches: how many matches to show,
+        :return: dictionary of selenium element -> dotProductProjection (score of how closely it matches)
+        '''
+        if type(self.ai_model) is not OpenAiActionWrapper:
+            raise Exception("UNABLE TO USE VECTOR STORE HCM CRAWLER! Need an OpenAiActionWrapper to use the OpenAiEmbeddings"
+                            + " for this Crawler to work! Configured AI Model is - " + str(type(self.ai_model)))
+        if not self.element_to_vector_map or len(self.element_to_vector_map) == 0:
+            raise Exception("Cannot find most matching elements to prompt because the element_to_vector_map is empty!")
+
+        # If we are passed a batch, we need to do an aggregate of each prompts similarity to the element
+        if isinstance(query, List):
+            query_vectors = self.ai_model.embed_documents(query)
+            rep_prompt_string = query[0]
+            element_match_list = self.__get_highest_match_for_query_batch(query_vectors)
+        else: # its just one query so we can do a more simple flow.
+            query_vector = self.ai_model.embed_string(query)
+            rep_prompt_string = query
+            element_match_list = [ElementMatchPair(v[0], v[1], MathUtils.cosine_similarity(query_vector, v[1]))
+                                  for v in self.element_to_vector_map.items()]
+        # Now get the top similarity scores
+        top_element_matches = sorted(element_match_list, key=lambda x: x.match_confidence, reverse=True)[:top_matches]
+
+        # Add to the running average so we can better tune queries and limits
+        if rep_prompt_string not in VectorStoreHcmCrawler.prompt_average_top_score_map:
+            VectorStoreHcmCrawler.prompt_average_top_score_map[rep_prompt_string] = RunningAverage()
+        VectorStoreHcmCrawler.prompt_average_top_score_map[rep_prompt_string].update(top_element_matches[0].match_confidence)
+
+        return top_element_matches
+
+
+    def __get_top_match_for_query(self, query: str | List[str]) -> ElementMatchPair:
+        '''
+        Utility method that executes a query and gets only the top one, then logs if it doesnt meet the certainty level
+        and finally returns the ElementMatchPair or None
+        :param query: query to try and find a match for
+        :return: top match as an ElementMatchPair or None
+        '''
+        # get the first element of the most matching elements
+        element_top_match_list = self.__get_most_matching_elements_to_prompt(query)
+        if len(element_top_match_list) == 0:
+            raise Exception("Could not find a single element in the critical tags on this webpage")
+        element_top_match = element_top_match_list[0]
+
+        # if it falls below the threshold then log it and return None
+        if element_top_match.match_confidence < VectorStoreHcmCrawler.certainty_clearance:
+            self.logger.info(f"Did not find any element for the query \"{query}\", highest score was {element_top_match.match_confidence}")
+            return None
+        return element_top_match
+
+
+    def __get_all_matches_for_query(self, query: str | List[str]) -> List[ElementMatchPair]:
+        '''
+        Utility method that executes a query and gets all matches that are above our match_confidence.
+
+        :param query: query to try and find a match for
+        :return: All matches for this query, that pass a threshold
+        '''
+        # get the first element of the most matching elements
+        element_match_pairs = self.__get_most_matching_elements_to_prompt(query, len(self.element_to_vector_map))
+
+        # if it falls below the threshold then log it and return None
+        qualified_matches = [em for em in element_match_pairs if em.match_confidence >= VectorStoreHcmCrawler.certainty_clearance]
+        return qualified_matches
