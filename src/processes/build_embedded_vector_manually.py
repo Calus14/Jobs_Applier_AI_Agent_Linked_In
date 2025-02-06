@@ -43,21 +43,27 @@ class BuildEmbeddedVectorManually:
                     element: e.target,
                     timestamp: Date.now()
                 });
-                statusDiv.innerHTML = `Selected elements: ${window.clickData.length}<br>Press ENTER to finish`;
+                e.preventDefault();  // Stop default Enter behavior
+                statusDiv.innerHTML = `Selected elements: ${window.clickData.length}<br>Press ENTER to finish<br>Press BackSpace to remove last click`;
             }
         }, true);
     
-        // Track Enter key press
+        // Enter to end collection
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 window.enterPressed = true;
                 statusDiv.innerHTML = 'Processing...';
                 e.preventDefault();  // Stop default Enter behavior
             }
+            else if (e.key === 'Backspace') {
+                window.clickData.pop();
+                statusDiv.innerHTML = `Selected elements: ${window.clickData.length}<br>Press ENTER to finish<br>Press BackSpace to remove last click`;
+                e.preventDefault();  // Stop default Enter behavior
+            }
         });
     """
 
-    base_directory = Path(__file__).resolve().parent.parent
+    base_directory = Path(__file__).resolve().parent.parent.parent
 
 
     def __init__(self, driver, ai_model, list_of_urls, vector_name):
@@ -73,18 +79,18 @@ class BuildEmbeddedVectorManually:
         self.vector_name = vector_name
 
         self.logger = LocalLogging.get_local_logger("build_embedded_vector_manually_process")
-        self.vector_save_file = BuildEmbeddedVectorManually.base_directory / "data_folder/output"
+        self.vector_save_file = BuildEmbeddedVectorManually.base_directory / "data_folder/query_vectors"
 
     def collect_average_vector_over_urls(self):
         total_element_vectors = []
         for url in self.list_of_urls:
             try:
-                total_element_vectors.append(self._run_page_collection(url))
+                total_element_vectors.extend(self._run_page_collection(url))
             except Exception as e:
                 self.logger.error(e)
 
         # remove any empty vectors that could have come from an error
-        non_empty_vectors_matrix = [vector for vector in total_element_vectors if len(vector) > 0]
+        non_empty_vectors_matrix = [vector for vector in total_element_vectors if vector and len(vector) > 0]
         element_vector_matrix = np.array(non_empty_vectors_matrix)
 
         # Compute the mean across the vectors (this will give us the average
@@ -92,7 +98,7 @@ class BuildEmbeddedVectorManually:
         vector_str = ",".join(map(str, average_vector))
 
         # Append to a file
-        with open(self.vector_save_file, "a") as f:
+        with open(self.vector_save_file / (self.vector_name + ".json"), "a") as f:
             f.write(vector_str + "\n")
 
 
@@ -120,25 +126,38 @@ class BuildEmbeddedVectorManually:
         while True:
             enter_pressed = self.driver.execute_script("return window.enterPressed;")
             if enter_pressed:
+                self._get_clicked_elements()
                 break
             time.sleep(0.5)  # Check every 500ms
+
+            # by getting elmenets here, we have a chance to grab an element that the person clicks and redirects them
+            # before the javascript unloads
+            self._get_clicked_elements()
+
             # there is an edge case where clicking an element cad take the current url to a different page completely
             # If this happens we will simply go to the next url and this is an edge case we can solve later
             if self.driver.current_url != starting_url:
                 self.logger.warn(f"Unable to get elements for url: {url} because clicking an element navigated us to a different page!")
-                raise Exception("Element navigated away from original page.")
+                break
 
-        # Get clicked elements directly from JavaScript
-        clicked_elements = self.driver.execute_script("""
-            return window.clickData.map(function(data) {
-                return data.element;
-            });
-        """)
+        if len(self.clicked_elements) == 0:
+            return None
 
-        unique_elements_html_context_map = SeleniumUtils.get_selenium_elements_as_critical_html_strings(self.driver, clicked_elements, context_level=1)
+        unique_elements_html_context_map = SeleniumUtils.get_selenium_elements_as_critical_html_strings(self.driver, self.clicked_elements, context_level=1)
         unique_elements_html_strings = list(unique_elements_html_context_map.keys())
         if isinstance(self.ai_model, OpenAiActionWrapper):
             return self.ai_model.embed_documents(unique_elements_html_strings)
         else:
             self.logger.error("Unable to find embedded vectors for given page because configured AI is not an type that has been handled explicitly.")
             raise Exception("Unconfigured AI Model in _run_page_collection")
+
+    def _get_clicked_elements(self):
+        '''
+        Wrapper method to reduce code bloat
+
+        '''
+        self.clicked_elements = self.driver.execute_script("""
+                return window.clickData.map(function(data) {
+                    return data.element;
+                });
+            """)

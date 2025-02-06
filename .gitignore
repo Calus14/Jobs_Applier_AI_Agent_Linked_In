@@ -163,3 +163,6 @@ venv.bak/
 mono_crash.*
 
 job_applications/
+
+!/data_folder/query_vectors/*
+!/data_folder/query_vectors

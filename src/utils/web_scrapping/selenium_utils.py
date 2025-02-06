@@ -300,10 +300,12 @@ class SeleniumUtils:
             raise Exception("Cannot find web-element from bs4 soup page object, no page-soup object given!")
 
         element_html = element.get_attribute("outerHTML")
-        matching_element = page_soup.find(lambda tag: tag and str(tag) == element_html)
+        element_soup = BeautifulSoup(element_html, "html.parser")
+        matching_element = page_soup.find(lambda tag: tag and str(tag) == str(element_soup))
         if matching_element == None:
             print(page_soup)
         return matching_element
+
 
     @staticmethod
     def print_tag_structure(tag, indent=0):

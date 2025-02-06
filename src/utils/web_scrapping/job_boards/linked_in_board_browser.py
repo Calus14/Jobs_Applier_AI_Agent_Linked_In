@@ -120,15 +120,21 @@ class LinkedInBoardBrowser(JobBoardBrowser):
         SeleniumUtils.scroll_element_in_steps(self.driver, job_list_scroll)
 
         # Until we have enough postings, or until we cannot click the "next" page of jobs"
-        while len(job_postings) < jobs_to_find:
+        max_exceptions = 5
+        exception_count = 0
+        while len(job_postings) < jobs_to_find and max_exceptions > exception_count:
 
             job_elements = self.driver.find_elements(By.XPATH, self.job_list_xpath)
+            # we ran out of jobs, exit the loop
+            if len(job_elements) == 0:
+                break
             # Iterate down each job element, click it, and extract the job details
             for element in job_elements:
                 try:
                     element.click()
                 except Exception as e:
                     self.logger.error(f"Unable to click job element! Exception: " + str(e))
+                    exception_count += 1
                     continue
 
                 job_posting = self._create_job_posting_from_client_(resume, ai_model)
@@ -307,11 +313,17 @@ class LinkedInBoardBrowser(JobBoardBrowser):
             # Use strict format to our advantage and avoid regex issues
             call_start_index = matching_answer.find(self.matching_call_chance_phrase) + len(self.matching_call_chance_phrase)
             call_end_index = matching_answer.find("%", call_start_index)
-            call_chance = int(matching_answer[call_start_index:call_end_index])
+            try:
+                call_chance = int(matching_answer[call_start_index:call_end_index])
+            except ValueError as ve:
+                call_chance = float(matching_answer[call_start_index:call_end_index])
 
             hire_start_index = matching_answer.find(self.matching_hired_chance_phrase) + len(self.matching_hired_chance_phrase)
             hire_end_index = matching_answer.find("%", hire_start_index)
-            hire_chance = int(matching_answer[hire_start_index:hire_end_index])
+            try:
+                hire_chance = int(matching_answer[hire_start_index:hire_end_index])
+            except ValueError as ve:
+                hire_chance = float(matching_answer[hire_start_index:hire_end_index])
             return [call_chance, hire_chance]
         except Exception as e:
             self.logger.error("Failed to get an answer on the matching percentages for ourself with the job!")

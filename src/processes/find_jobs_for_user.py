@@ -79,7 +79,10 @@ class FindJobsForUser:
             self.board_browser.do_search(self.local_config.WORK_PREFS["positions"], self.local_config.WORK_PREFS)
             job_postings = self.board_browser.extract_and_evaluate_jobs(self.local_config.RESUME, self.ai_model, self.local_config.WORK_PREFS["max_jobs_apply_to"])
             most_likely_postings = sorted(job_postings, key=lambda posting: posting.interview_chance, reverse=True)
+
             for posting in most_likely_postings:
                 self.logger.info(f"Found a job posting with url {posting.url_link} and we have a {posting.interview_chance} of getting an interview and {posting.hired_chance} of getting hired")
+
+            return most_likely_postings
         finally:
             self.board_browser.close_browser()

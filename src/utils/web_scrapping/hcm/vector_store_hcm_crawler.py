@@ -1,4 +1,5 @@
 import json
+import os.path
 import time
 from typing import List, Dict
 
@@ -59,7 +60,7 @@ class VectorStoreHcmCrawler(HcmCrawler):
         '''
         Appends to a file each time these are run so that we can later know how accurate our prompts are for each run.
         '''
-        prompt_score_file = global_config.LOG_OUTPUT_FILE_PATH / "vector_prompt_scores_cookies.json"
+        prompt_score_file = global_config.LOG_OUTPUT_FILE_PATH / "vector_prompt_scores.json"
 
         # Save to a file
         with open(prompt_score_file, "a") as file:
@@ -79,12 +80,12 @@ class VectorStoreHcmCrawler(HcmCrawler):
         self.__break_page_into_vector_store()
 
         # Checks to see if there are any elements to fill out
-        self.elements_to_fill_out = self.__get_all_matches_for_query(VectorStoreHcmCrawler.prompt_module.critical_elements_query)
+        self.elements_to_fill_out = self.__get_all_matches_for_query(VectorStoreHcmCrawler.prompt_module.critical_elements_query, "Critical Elements Query")
 
         # If there are elements to fill out on the current clients page, then we can start the application more than likely.
         if len(self.elements_to_fill_out) == 0:
             # If there is an element like "apply now" or "click here to apply" we will need to click that button
-            apply_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.apply_now_element_query)
+            apply_element_pair = self.__get_top_match_for_query(self.__get_vector_query_from_file("test_vector"), "Apply Now Element")
             if not apply_element_pair:
                 raise Exception("Was unable to find any elements to fill out or find any element to start application!")
 
@@ -94,7 +95,7 @@ class VectorStoreHcmCrawler(HcmCrawler):
 
             # Covers the case of a popup for "apply with linkedin/apply manually"
             self.__break_page_into_vector_store()
-            apply_manual_element_pair = self.__get_all_matches_for_query(VectorStoreHcmCrawler.prompt_module.apply_manual_element_query)
+            apply_manual_element_pair = self.__get_all_matches_for_query(VectorStoreHcmCrawler.prompt_module.apply_manual_element_query, "Apply Manual Element Query")
             if apply_manual_element_pair:
                 SeleniumUtils.interact_with_element(apply_element_pair)
                 time.sleep(1)
@@ -109,14 +110,14 @@ class VectorStoreHcmCrawler(HcmCrawler):
         '''
         self.__break_page_into_vector_store()
 
-        login_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.login_element_query)
+        login_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.login_element_query, "Login Element Query")
 
         # if we dont have any element to login
         if not login_element_pair:
             self.login_element = None
 
             # Do we have anything on the page that would indicate we need to login?
-            login_indicator_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.login_indicator_element_query)
+            login_indicator_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.login_indicator_element_query, "Login Element Query")
             if login_indicator_pair:
                 raise Exception(f"Found an element that indicates we do need to login with certaintiy of {login_indicator_pair.match_confidence} but could not find a login element")
 
@@ -145,9 +146,9 @@ class VectorStoreHcmCrawler(HcmCrawler):
         # get the new pages elements in the vector store
         self.__break_page_into_vector_store()
 
-        login_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.login_element_query)
-        username_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.user_element_query)
-        password_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.password_element_query)
+        login_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.login_element_query, "Login Element Query")
+        username_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.user_element_query, "Username Element Query")
+        password_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.password_element_query, "Password Element Query")
 
         if not login_element_pair or not username_element_pair or not password_element_pair:
             raise Exception("Cannot login because we could not find all 3 elements, login, username, and password!")
@@ -169,7 +170,7 @@ class VectorStoreHcmCrawler(HcmCrawler):
         :return: true if we were able to create an account, false or an exception if there was an error
         '''
         # get the first element of the most matching elements
-        create_account_element_pair = self.__get_most_matching_elements_to_prompt(VectorStoreHcmCrawler.create_account_element_query)
+        create_account_element_pair = self.__get_most_matching_elements_to_prompt(VectorStoreHcmCrawler.create_account_element_query, "Create Account Element")
         if not create_account_element_pair:
             raise Exception("No element found to create account.")
 
@@ -180,9 +181,9 @@ class VectorStoreHcmCrawler(HcmCrawler):
         # re-index the vector storage with the pages new elements that should have appeared
         self.__break_page_into_vector_store()
 
-        confirm_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.confirm_element_query)
-        username_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.user_element_query)
-        password_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.password_element_query)
+        confirm_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.confirm_element_query, "Confirm Element Query")
+        username_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.user_element_query, "Username Element Query")
+        password_element_pair = self.__get_top_match_for_query(VectorStoreHcmCrawler.prompt_module.password_element_query, "Password Element Query")
 
         if not confirm_element_pair or not username_element_pair or not password_element_pair:
             raise Exception("Cannot login because we could not find all 3 elements, confirm, username, and password!")
@@ -207,7 +208,7 @@ class VectorStoreHcmCrawler(HcmCrawler):
         self.__break_page_into_vector_store()
 
         # Checks to see if there are any elements to fill out
-        self.elements_to_fill_out = self.__get_all_matches_for_query(VectorStoreHcmCrawler.prompt_module.critical_elements_query)
+        self.elements_to_fill_out = self.__get_all_matches_for_query(VectorStoreHcmCrawler.prompt_module.critical_elements_query, "Critical Elements Query")
 
         # If there are elements to fill out on the current clients page, then we can start the application more than likely.
         if len(self.elements_to_fill_out) == 0:
@@ -340,7 +341,7 @@ class VectorStoreHcmCrawler(HcmCrawler):
         return element_match_list
 
 
-    def __get_most_matching_elements_to_prompt(self, query: str | List[str], top_matches = 1) -> Dict[PageElement, float]:
+    def __get_most_matching_elements_to_prompt(self, query: str | List[str] | List[float], query_name: str, top_matches = 1) -> Dict[PageElement, float]:
         '''
         MAGIC HAPPENS HERE
         Takes a prompt that is direct and ambiguous and attempts to find an elements that match the most to what its describing.
@@ -357,26 +358,35 @@ class VectorStoreHcmCrawler(HcmCrawler):
 
         # If we are passed a batch, we need to do an aggregate of each prompts similarity to the element
         if isinstance(query, List):
-            query_vectors = self.ai_model.embed_documents(query)
-            rep_prompt_string = query[0]
-            element_match_list = self.__get_highest_match_for_query_batch(query_vectors)
-        else: # its just one query so we can do a more simple flow.
+            # Make sure we were given something
+            if len(query) == 0:
+                raise Exception("Provided a list of 0 query strings or of no weighted values cannot __get_most_matching_elements_to_prompt")
+
+            # if we were given a list of Strings were using a string prompts list
+            if isinstance(query[0], str):
+                query_vectors = self.ai_model.embed_documents(query)
+                element_match_list = self.__get_highest_match_for_query_batch(query_vectors)
+            elif isinstance(query[0], float):
+                element_match_list = [ElementMatchPair(v[0], v[1], MathUtils.cosine_similarity(query, v[1]))
+                                      for v in self.element_to_vector_map.items()]
+
+        elif isinstance(query, str): # its just one query so we can do a more simple flow.
             query_vector = self.ai_model.embed_string(query)
-            rep_prompt_string = query
             element_match_list = [ElementMatchPair(v[0], v[1], MathUtils.cosine_similarity(query_vector, v[1]))
                                   for v in self.element_to_vector_map.items()]
+
         # Now get the top similarity scores
         top_element_matches = sorted(element_match_list, key=lambda x: x.match_confidence, reverse=True)[:top_matches]
 
         # Add to the running average so we can better tune queries and limits
-        if rep_prompt_string not in VectorStoreHcmCrawler.prompt_average_top_score_map:
-            VectorStoreHcmCrawler.prompt_average_top_score_map[rep_prompt_string] = RunningAverage()
-        VectorStoreHcmCrawler.prompt_average_top_score_map[rep_prompt_string].update(top_element_matches[0].match_confidence)
+        if query_name not in VectorStoreHcmCrawler.prompt_average_top_score_map:
+            VectorStoreHcmCrawler.prompt_average_top_score_map[query_name] = RunningAverage()
+        VectorStoreHcmCrawler.prompt_average_top_score_map[query_name].update(top_element_matches[0].match_confidence)
 
         return top_element_matches
 
 
-    def __get_top_match_for_query(self, query: str | List[str]) -> ElementMatchPair:
+    def __get_top_match_for_query(self, query: str | List[str] | List[float], query_name) -> ElementMatchPair:
         '''
         Utility method that executes a query and gets only the top one, then logs if it doesnt meet the certainty level
         and finally returns the ElementMatchPair or None
@@ -384,7 +394,7 @@ class VectorStoreHcmCrawler(HcmCrawler):
         :return: top match as an ElementMatchPair or None
         '''
         # get the first element of the most matching elements
-        element_top_match_list = self.__get_most_matching_elements_to_prompt(query)
+        element_top_match_list = self.__get_most_matching_elements_to_prompt(query, query_name)
         if len(element_top_match_list) == 0:
             raise Exception("Could not find a single element in the critical tags on this webpage")
         element_top_match = element_top_match_list[0]
@@ -396,7 +406,7 @@ class VectorStoreHcmCrawler(HcmCrawler):
         return element_top_match
 
 
-    def __get_all_matches_for_query(self, query: str | List[str]) -> List[ElementMatchPair]:
+    def __get_all_matches_for_query(self, query: str | List[str] | List[float], query_name:str ) -> List[ElementMatchPair]:
         '''
         Utility method that executes a query and gets all matches that are above our match_confidence.
 
@@ -404,8 +414,33 @@ class VectorStoreHcmCrawler(HcmCrawler):
         :return: All matches for this query, that pass a threshold
         '''
         # get the first element of the most matching elements
-        element_match_pairs = self.__get_most_matching_elements_to_prompt(query, len(self.element_to_vector_map))
+        element_match_pairs = self.__get_most_matching_elements_to_prompt(query, query_name, len(self.element_to_vector_map))
 
         # if it falls below the threshold then log it and return None
         qualified_matches = [em for em in element_match_pairs if em.match_confidence >= VectorStoreHcmCrawler.certainty_clearance]
         return qualified_matches
+
+    def __get_vector_query_from_file(self, vector_name):
+        '''
+        Each time we run the developer tool it will append a new vector to its respective file. We simply load all of
+        these lines and find the average.
+        :param vector_name: name of the vector that we will be looking for in storage
+        :return: vector average for all run's of the dev tool for this vector NOTE: KEEP YOUR DEV RUNS CLEANED
+        '''
+        if not os.path.exists(global_config.VECTOR_OUTPUT_FILE_PATH / (vector_name + ".json")):
+            raise Exception(f"Cannot get vector_named {vector_name} from file storage! Make sure that it has been created recently!")
+
+        vector_file_path = global_config.VECTOR_OUTPUT_FILE_PATH / (vector_name + ".json")
+        runs_query_vectors = []
+        with open(vector_file_path, 'r') as file:
+            for line in file:
+                # Split the line by spaces (or another delimiter) and convert to float
+                float_values = [float(value) for value in line.split(',')]
+                runs_query_vectors.append(float_values)
+
+        query_vector_matrix = np.array(runs_query_vectors)
+
+        # Compute the mean across the vectors (this will give us the average
+        average_vector = np.mean(query_vector_matrix, axis=0).tolist()
+        return average_vector
+

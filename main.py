@@ -86,42 +86,40 @@ def main():
     secrets_file, work_prefs, plain_text_resume_file, output_folder = ConfigValidator.validate_data_folder(data_folder)
 
     # DEVELOPER TOOL SECTION, ENABLE OR DISABLE BY COMMENTING OUT
-    most_likely_postings = temp_load_job_postings()
-    list_of_urls = [x.url_link for x in most_likely_postings]
-    manual_vector_builder = BuildEmbeddedVectorManually(WebDriverFactory().get_chrome_web_driver(),
-                                                        global_config.AI_MODEL,
-                                                        list_of_urls,
-                                                        "test_vector")
-    manual_vector_builder.collect_average_vector_over_urls()
+    # most_likely_postings = temp_load_job_postings()
+    # list_of_urls = [x.url_link for x in most_likely_postings]
+    # manual_vector_builder = BuildEmbeddedVectorManually(WebDriverFactory().get_chrome_web_driver(),
+    #                                                     global_config.AI_MODEL,
+    #                                                     list_of_urls,
+    #                                                     "test_vector")
+    # manual_vector_builder.collect_average_vector_over_urls()
 
 
-    # try:
-    #     linked_in_board_browser = LinkedInBoardBrowser(driver=WebDriverFactory().get_chrome_web_driver())
-    #     find_job_process = FindJobsForUser(linked_in_board_browser, global_config.AI_MODEL)
-    #     find_job_process.configure_for_user(secrets_file, plain_text_resume_file, work_prefs)
-    #     job_postings = find_job_process.find_jobs_for_user()
-    #
-    #     # temp_save_job_postings(job_postings)
-    #     most_likely_postings = temp_load_job_postings()
-    #     apply_for_jobs = ApplyForJobs(WebDriverFactory().get_chrome_web_driver(),
-    #                                   VectorStoreHcmCrawler,
-    #                                   most_likely_postings,
-    #                                   find_job_process.local_config,
-    #                                   find_job_process.ai_model)
-    #     apply_for_jobs.validate_should_apply_for_jobs()
-    #     apply_for_jobs.apply_for_jobs()
-    #     apply_for_jobs.save_jobs_applied_to()
-    #     apply_for_jobs.save_jobs_failed_applied_to()
-    #
-    # except Exception as e:
-    #     main_logger.error(e)
-    # finally:
-    #     VectorStoreHcmCrawler.dump_average_prompt_scores()
+    try:
+        linked_in_board_browser = LinkedInBoardBrowser(driver=WebDriverFactory().get_chrome_web_driver())
+        find_job_process = FindJobsForUser(linked_in_board_browser, global_config.AI_MODEL)
+        find_job_process.configure_for_user(secrets_file, plain_text_resume_file, work_prefs)
+        most_likely_postings = find_job_process.find_jobs_for_user()
+
+        temp_save_job_postings(most_likely_postings)
+        most_likely_postings = temp_load_job_postings()
+        apply_for_jobs = ApplyForJobs(WebDriverFactory().get_chrome_web_driver(),
+                                      VectorStoreHcmCrawler,
+                                      most_likely_postings,
+                                      find_job_process.local_config,
+                                      find_job_process.ai_model)
+        apply_for_jobs.validate_should_apply_for_jobs()
+        apply_for_jobs.apply_for_jobs()
+        apply_for_jobs.save_jobs_applied_to()
+        apply_for_jobs.save_jobs_failed_applied_to()
+
+    except Exception as e:
+        main_logger.error(e)
 
     main_logger.info(f"Finished running the applicaiton and spent a total of {LLMLogger.total_run_cost} credits")
 
 
-def tempt_save_job_postings(jobs_postings):
+def temp_save_job_postings(jobs_postings):
     postings_file = global_config.LOG_OUTPUT_FILE_PATH / "job_postings.json"
     with open(postings_file, "a") as file:
         file.write("\n\n----------------------------------------\n\n")
